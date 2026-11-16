@@ -22,6 +22,10 @@ const CSP = [
   "object-src 'none'",
 ].join('; ');
 
+// GitHub Pages project sites live under /<repo>/. Local dev and the default
+// build stay at the root; the Pages workflow sets VITE_BASE=/cycal/.
+const base = (process.env.VITE_BASE ?? '/').replace(/\/?$/, '/');
+
 function cspPlugin(): Plugin {
   return {
     name: 'cycal-csp',
@@ -34,6 +38,7 @@ function cspPlugin(): Plugin {
 }
 
 export default defineConfig({
+  base,
   plugins: [
     svelte(),
     cspPlugin(),
@@ -50,9 +55,10 @@ export default defineConfig({
       manifest: {
         name: 'Cycal',
         short_name: 'Cycal',
+        id: base,
         description: 'Private cycle tracking. Your data stays on this device.',
-        start_url: '/',
-        scope: '/',
+        start_url: base,
+        scope: base,
         display: 'standalone',
         background_color: '#FAF9F7',
         theme_color: '#FAF9F7',
@@ -69,7 +75,9 @@ export default defineConfig({
       },
       workbox: {
         globPatterns: ['**/*.{js,css,html,svg,png,woff2}'],
-        navigateFallback: '/index.html',
+        navigateFallback: `${base}index.html`,
+        skipWaiting: true,
+        clientsClaim: true,
       },
     }),
   ],

@@ -350,10 +350,10 @@ All confirmed v1 scope is implemented in `src/`.
 | CSP | present in `dist/index.html`; no inline script; zero cross-origin requests after load |
 | Screenshots | `screenshots/` — light/dark 390, 320, day sheet, settings, history |
 
-**Bundle:** 172.3 KB JS → **55.7 KB gzip**, plus a 2.2 KB gzip service-worker bridge; CSS 15.1 KB → 3.7 KB gzip. This misses the 50 KB JS goal by about 7 KB; the real number is recorded rather than hidden.
+**Bundle:** 169.8 KB JS → **54.7 KB gzip**, CSS 15.1 KB → 3.7 KB gzip, 15 precached files. This misses the 50 KB JS goal by about 5 KB; the real number is recorded rather than hidden. The service-worker bridge was removed when registration moved to a small base-aware `main.ts` handler.
 
 **Fixed during verification:** Svelte `$state` proxies could not be structured-cloned into IndexedDB (snapshotted at the store boundary); the fertile tint was effectively invisible (warm tint plus dotted underline plus a legend entry); the backup nudge sat above the calendar instead of below; singular day/event copy; the same-day "Period started" action competed with an open period.
 
 **Not verified:** iOS Safari install and storage eviction, real screen-reader output, and importing the `.ics` file into Apple or Google Calendar. No notifications, sync or app lock by design.
 
-**Tooling notes:** TypeScript is pinned to 6.0.3 because `svelte-check` 4.7 rejects TypeScript 7; `workbox-window` is installed for `virtual:pwa-register`; Playwright's Chromium lives in the gitignored `.playwright-browsers/`.
+**Tooling notes:** TypeScript is pinned to 6.0.3 because `svelte-check` 4.7 rejects TypeScript 7; Playwright's Chromium lives in the gitignored `.playwright-browsers/`. The Pages build uses `VITE_BASE=/cycal/` and registers the service worker from that base; a local `/cycal/` static-server test covers manifest scope and offline reload.

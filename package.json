@@ -3,9 +3,11 @@
   "private": true,
   "version": "0.1.0",
   "type": "module",
+  "packageManager": "pnpm@12.10.1",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
+    "build:pages": "VITE_BASE=/cycal/ vite build",
     "preview": "vite preview",
     "check": "svelte-check --tsconfig ./tsconfig.json",
     "test": "vitest run",
@@ -15,8 +17,7 @@
     "@internationalized/date": "^3.12.4",
     "bits-ui": "^2.21.0",
     "idb": "^8.0.4",
-    "svelte": "^5.57.3",
-    "workbox-window": "^7.4.1"
+    "svelte": "^5.57.3"
   },
   "devDependencies": {
     "@playwright/test": "^1.65.1",

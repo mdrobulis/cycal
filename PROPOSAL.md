@@ -117,7 +117,7 @@ IndexedDB `cycal`, versioned: store `events` (keyPath `id`, index `by_date`), st
 | Tooling | pnpm, Prettier, `svelte-check`; TypeScript pinned to 6 | `svelte-check` 4.7 rejects TypeScript 7; Vite transpiles without tsc, so the pin costs nothing at runtime. |
 | Hosting | Any static host over HTTPS, served from the domain root | No server exists. `connect-src 'none'` in the page CSP makes that structural. |
 
-**Measured build:** 55.7 KB gzip JS + 2.2 KB gzip service-worker bridge; 3.7 KB gzip CSS. The 50 KB JS target was missed by ~7 KB; the app ships at ~58 KB total gzip. The number is recorded rather than hidden.
+**Measured build:** 54.7 KB gzip JS; 3.7 KB gzip CSS; 15 precached files. The 50 KB JS target was missed by ~5 KB; the app ships at ~58 KB total gzip. The number is recorded rather than hidden.
 
 ## 5. Visual and interaction rules
 
@@ -133,7 +133,7 @@ IndexedDB `cycal`, versioned: store `events` (keyPath `id`, index `by_date`), st
 
 The reason this is a PWA and not a website with an account.
 
-- **No runtime network.** No analytics, no crash reporting, no CDN fonts, no third-party scripts. The production page carries `default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'none'; worker-src 'self'; manifest-src 'self'; base-uri 'none'; form-action 'none'; object-src 'none'`. The page is structurally unable to send data anywhere; the SW registration is a module import, not an inline script. Verified in a real browser: zero cross-origin requests after load.
+- **No runtime network.** No analytics, no crash reporting, no CDN fonts, no third-party scripts. The production page carries `default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'none'; worker-src 'self'; manifest-src 'self'; base-uri 'none'; form-action 'none'; object-src 'none'`. The page is structurally unable to send data anywhere; the service worker is registered from the module entry, not an inline script. Verified in a real browser: zero cross-origin requests after load.
 - **Threat model, stated honestly:** the device being lost or inspected, a cloud backup, someone glancing at the screen. Not a state actor and not a compromised OS. Protection at rest is the OS passcode plus disk encryption; the app does not pretend to add encryption it does not have.
 - **Export is plaintext.** JSON backups and `.ics` prediction files are readable by anyone who gets them; the buttons say so. Import merges by `id` or replaces everything.
 - **Delete all** is immediate and reversible only by an exported backup — the one place a confirmation is correct.

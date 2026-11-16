@@ -45,9 +45,15 @@ The nine flows cover first run and persistence, undo, still-bleeding/ended, keyb
 
 ## Install as a PWA
 
-Deploy the contents of `dist/` to any static host over HTTPS, served from the domain root. There is no backend. On iOS use Share → Add to Home Screen; on Android use Chrome's Install action.
+The repo includes [`.github/workflows/deploy.yml`](.github/workflows/deploy.yml): a push to `main` builds with `VITE_BASE=/cycal/` and deploys `dist/` to GitHub Pages. Enable **Settings → Pages → Build and deployment → Source: GitHub Actions** once. The live URL is `https://<user>.github.io/cycal/`.
 
-The page CSP is injected into the production build only, so `connect-src 'none'` applies to the shipped app while Vite's HMR still works in development. Notifications are not implemented: use the `.ics` export to put predicted dates in the phone's calendar.
+To test the Pages build locally, build with the subpath and serve `dist/` under `/cycal/`:
+
+```bash
+VITE_BASE=/cycal/ pnpm build
+```
+
+On iOS use Safari → Share → Add to Home Screen; on Android use Chrome's Install action. The page CSP is injected into the production build only, so `connect-src 'none'` applies to the shipped app while Vite's HMR still works in development. Notifications are not implemented: use the `.ics` export to put predicted dates in the phone's calendar.
 
 ## Privacy model
 
@@ -77,7 +83,7 @@ The canonical date is a `YYYY-MM-DD` string everywhere except inside `MonthCalen
 ## Verification snapshot
 
 - 55 unit tests and 9 Playwright flows pass; `svelte-check` is clean.
-- Production build: **55.7 KB gzip JS** + 2.2 KB service-worker bridge, 3.7 KB gzip CSS.
+- Production build: **54.7 KB gzip JS**, 3.7 KB gzip CSS, 15 precached files (≈190 KB).
 - 390 px and 320 px: no horizontal overflow; day cells 46×46 and 40×40; no visible control below 44 px.
 - All key text/background pairs pass 4.5:1 in both palettes.
 - Screenshots: [`screenshots/`](screenshots/).
@@ -88,5 +94,5 @@ The canonical date is a `YYYY-MM-DD` string everywhere except inside `MonthCalen
 
 - Mobile-only by design: on a desktop it renders as a centred phone-width column.
 - TypeScript is pinned to 6.0.3 because this `svelte-check` release does not support TypeScript 7.
-- The JS bundle is about 7 KB gzip over the original 50 KB target.
+- The JS bundle is about 5 KB gzip over the original 50 KB target.
 - No notifications, sync or app lock, by decision.
