@@ -47,7 +47,7 @@ events.push(event('flow', addDays(starts[2], 1), { value: 'medium' }));
 events.push(event('symptom', offsetKey(-2), { label: 'Pilvo skausmai', severity: 2 }));
 events.push(event('mood', offsetKey(-1), { value: 4 }));
 events.push(event('note', offsetKey(-6), { note: 'Ilgas pasivaikščiojimas, jaučiausi gerai' }));
-events.push(event('intimacy', offsetKey(-3)));
+events.push(event('intimacy', offsetKey(-3), { value: 'protected' }));
 
 async function seed(page) {
   await page.goto(BASE);
@@ -117,6 +117,11 @@ report.home390 = await metrics(page);
 await openCalendar(page);
 await page.screenshot({ path: `${OUT}/calendar-light-390.png`, fullPage: true });
 report.calendar390 = await metrics(page);
+
+await page.getByRole('button', { name: 'Žymėti intervalą' }).click();
+await page.locator(`.cal-day[data-value="${offsetKey(-2)}"]`).click();
+await page.screenshot({ path: `${OUT}/calendar-range-390.png`, fullPage: true });
+await page.locator('.range-bar').getByRole('button', { name: 'Atšaukti' }).click();
 
 await page.locator(`.cal-day[data-value="${offsetKey(-13)}"]`).click();
 await page.locator('.day-panel').waitFor();

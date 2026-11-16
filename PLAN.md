@@ -7,6 +7,10 @@ Status: v4 · implemented and verified 16 Nov 2026
 > **v2 UI pass (16 Nov 2026):** dashboard and calendar are now separate tabs, the dashboard is a glance view with a cycle bar, the calendar uses event icons and a compact legend, day records open below the calendar, and past cycles can be added/edited/deleted. See §13.
 >
 > **v3 UI pass (16 Nov 2026):** the dashboard is now a countdown board (large days-left numbers, small date notes, no cycle bar), and bleeding is recorded through one intensity control in the day panel. See §14.
+>
+> **Intimacy detail pass (16 Nov 2026):** intimacy records now carry a protected/unprotected detail, stored in the existing event value. See §15.
+>
+> **Period range pass (16 Nov 2026):** Calendar gains a tap-or-drag range mode that writes a completed period start/end in one go. See §16.
 
 A local-only **Vite + Svelte 5 SPA PWA** for one person, with the month grid built on **Bits UI Calendar** and styled entirely from our own tokens. No account, no backend, no telemetry.
 
@@ -20,7 +24,7 @@ A local-only **Vite + Svelte 5 SPA PWA** for one person, with the month grid bui
 - **Non-restrictive entry:** any past date, no minimum, month/year jump; future notes allowed, future period events blocked with copy; no forced sequences; everything editable.
 - **Dashboard six values:** cycle day, next period, fertile window, ovulation, PMS window, last period.
 - **Period logging is start + daily "still bleeding"**; the end is the last confirmed bleeding day.
-- **Event types:** symptom (with severity), mood, flow, intimacy, note, custom label — plus period start/end.
+- **Event types:** symptom (with severity), mood, flow, intimacy (protected/unprotected), note, custom label — plus period start/end.
 - **No forced onboarding.** Empty dashboard on first launch; history can be added at any time.
 - **Also in v1:** `.ics` prediction export, symptom severity, cycle history, irregular/paused prediction modes, manual cycle defaults, dark mode, backup nudge.
 - Fertility dates are estimates, clearly labeled, never contraception.
@@ -105,7 +109,7 @@ type DayEvent = {
   date: DayKey;
   kind: EventKind;
   label?: string;          // symptom name, custom label
-  value?: number | string; // mood 1–5; flow 'light' | 'medium' | 'heavy'
+  value?: number | string; // mood 1–5; flow 'light' | 'medium' | 'heavy'; intimacy 'protected' | 'unprotected'
   severity?: Severity;     // symptoms only
   note?: string;
   createdAt: string;
@@ -240,7 +244,7 @@ Native `<dialog>` as a bottom sheet (max 85 `dvh`, sticky footer, 16 px inputs, 
 |---|---|
 | Period | Period started / Still bleeding / Period ended (contextual) |
 | Common | Symptom · Mood · Flow |
-| Other | Intimacy · Note · Custom |
+| Other | Intimacy (protected/unprotected) · Note · Custom |
 
 - Symptom opens the preset list + "Other…", then optional **Mild / Moderate / Severe**.
 - Mood: five levels. Flow: three levels, only on days a period covers.
@@ -410,3 +414,24 @@ The v1 mechanics, schema, URLs and QR stayed unchanged. This pass changed presen
 **Verification.** `svelte-check` clean; 82 unit tests in 7 files; 12 Playwright flows; build **62.7 KB gzip JS**, 4.5 KB gzip CSS, 15 precached files (222 KiB). 390/320 have no horizontal overflow; the countdown grid, 44 px controls, active card and day panel fit. Screenshots include Today light/dark, Calendar, the intensity panel and the active-period card.
 
 **Data/deploy.** No IndexedDB, backup, settings, URL or QR changes. Existing data remains valid. Real iOS safe-area/screen-reader behaviour and ICS import remain untested.
+
+
+## 15. Intimacy detail pass — 16 Nov 2026
+
+**Intimacy detail.** `Intymumas` is no longer a one-tap toggle. Its add chip opens a two-option panel (`Apsauga`: `Apsaugotas` / `Neapsaugotas`). The choice is stored in the existing `DayEvent.value` field as `'protected'` or `'unprotected'`; selecting a different value replaces the day's record, so a day still has one intimacy row and one heart icon. Older records without a value remain valid and read `Apsauga nenurodyta` until edited. Removal stays on the row's trash button with undo.
+
+**Data/deploy.** No IndexedDB, backup schema, settings, prediction, ICS, URL or QR changes. Existing backups with bare intimacy events import and render. The panel is keyboard- and screen-reader-addressable through a labelled group with `aria-pressed` chips.
+
+**Verification.** `svelte-check` clean; 89 unit tests in 8 files; 13 Playwright flows; build **62.8 KB gzip JS**, 4.5 KB gzip CSS, 15 precached files (≈222 KB).
+
+
+
+## 16. Period range pass — 16 Nov 2026
+
+**Range entry.** Calendar has a `Žymėti intervalą` mode. Entering it clears any selected day panel and shows a hint bar: `Pasirink pradžią arba brauk`, then `Pradžia: … · Pasirink pabaigą`. Tapping a day selects the start; a second tap normalises and saves start/end. Pressing a day and dragging to another saves the range on release. One-day ranges work. `Atšaukti` discards the preview; no data is written until a valid commit.
+
+**Gesture.** Pointer Events drive drag selection; pointer capture is enabled only once the pointer moves, so ordinary taps still reach Bits UI and open/choose days. A capture-phase click guard suppresses the synthetic click after a drag, preventing a duplicate range or an unintended day panel. `touch-action:none` applies to the grid only in range mode; the rest of the page scrolls. Drags are normalised to earliest/latest.
+
+**Validation.** Range mode uses the existing `addPeriodRange` action: future dates, overlaps, active-period ordering and range order are rejected with the existing Lithuanian errors; the range bar stays open for correction. The period is saved as `period-start` + `period-end` only; no flow/intensity is fabricated. The day-panel bleeding control remains the single intensity entry.
+
+**Verification.** 89 unit tests in 8 files; 17 Playwright flows (tap range, drag range, keyboard range, cancel/future); build **64.0 KB gzip JS**, 4.7 KB gzip CSS, 15 precached files (227 KiB). Screenshots include the range hint/start preview. No IndexedDB, backup, settings, URL or QR changes. Real iOS safe-area/screen-reader behaviour and ICS import remain untested.

@@ -1,5 +1,5 @@
 import { COPY } from './strings';
-import type { DayEvent, FlowValue, Severity } from './types';
+import type { DayEvent, FlowValue, ProtectionValue, Severity } from './types';
 
 export const SYMPTOMS = [
   'Pilvo skausmai',
@@ -29,6 +29,11 @@ export const SEVERITIES: ReadonlyArray<{ value: Severity; label: string }> = [
   { value: 3, label: 'Stiprus' },
 ];
 
+export const PROTECTIONS: ReadonlyArray<{ value: ProtectionValue; label: string }> = [
+  { value: 'protected', label: 'Apsaugotas' },
+  { value: 'unprotected', label: 'Neapsaugotas' },
+];
+
 export function severityLabel(value: unknown): string {
   return SEVERITIES.find((entry) => entry.value === value)?.label ?? '';
 }
@@ -41,6 +46,10 @@ export function moodLabel(value: unknown): string {
 
 export function flowLabel(value: unknown): string {
   return FLOWS.find((entry) => entry.value === value)?.label ?? '';
+}
+
+export function protectionLabel(value: unknown): string {
+  return PROTECTIONS.find((entry) => entry.value === value)?.label ?? '';
 }
 
 export function eventLabel(event: DayEvent): string {
@@ -79,6 +88,8 @@ export function eventDetail(event: DayEvent): string {
       return moodLabel(event.value);
     case 'flow':
       return flowLabel(event.value);
+    case 'intimacy':
+      return protectionLabel(event.value) || COPY.sheet.protectionUnknown;
     case 'note':
       return event.note ?? '';
     case 'custom':

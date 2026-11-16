@@ -17,8 +17,9 @@ Built from [PROPOSAL.md](PROPOSAL.md); the decisions and build report live in [P
 - **Tabs:** `Šiandien` and `Kalendorius` switch in one tap; the tab bar stays reachable while scrolling.
 - **Today:** a countdown board. Cycle day and phase are compact context; four tiles show the days left to the next period, fertile window, ovulation and PMS as the large numbers, with dates as small muted notes. Last period is a small footer. No prose status lines.
 - **Period logging:** mark a start; the **one** bleeding-intensity control in the day panel records the bleeding day together with `Lengvas`, `Vidutinis` or `Stiprus`. The active card shows today's level and a `Keisti` shortcut; `Baigėsi` ends the period. A period can be entered on any past day.
+- **Period range:** in Calendar, `Žymėti intervalą` enters a range mode. Tap a start and end, or press on one day and drag to another, to save a completed period in one go. One-day ranges work; the range mode validates future/overlapping ranges and does not set per-day intensity.
 - **Calendar:** solid recorded period days, dashed predicted days, fertile tint with a dotted underline, ovulation ring, and small event-type icons (symptom, mood, flow, intimacy, note, custom) with a compact legend. A day opens an inline record panel **below** the calendar, never a modal. Month/year selects and previous/next/today controls sit in the calendar header; keyboard navigation works.
-- **Day panel:** the single bleeding-intensity control, symptoms (with mild/moderate/severe), mood, intimacy, notes and custom labels, all with delete + undo. Notes and custom entries can be edited in place on past days.
+- **Day panel:** the single bleeding-intensity control, symptoms (with mild/moderate/severe), mood, intimacy (protected or unprotected), notes and custom labels, all with delete + undo. Notes and custom entries can be edited in place on past days.
 - **History editor:** add completed past periods with start/end dates, edit a cycle's dates, or delete it. Non-period records on those days are preserved; predictions and cycle stats update immediately. Entry is offered from the empty Today screen and Settings → Ciklų istorija.
 - **Predictions:** median of recent cycles, a 28-day default until two cycles exist, ranges when cycles vary, and Auto / Irregular / Paused modes.
 - **Data:** cycle history, JSON backup and restore, `.ics` prediction export, erase-all, and a backup nudge.
@@ -41,7 +42,7 @@ Requires Node 22+ and pnpm.
 
 ```bash
 pnpm check        # svelte-check: 0 errors, 0 warnings
-pnpm test         # Vitest: dates, Lithuanian plural, periods/history ranges, phase countdowns, backup, ICS
+pnpm test         # Vitest: dates, Lithuanian plural, periods/history ranges, phase countdowns, backup, intimacy labels, ICS
 ```
 
 The browser suite needs Chromium. It is kept inside the workspace so it does not touch global caches:
@@ -51,7 +52,7 @@ PLAYWRIGHT_BROWSERS_PATH="$PWD/.playwright-browsers" pnpm exec playwright instal
 PLAYWRIGHT_BROWSERS_PATH="$PWD/.playwright-browsers" pnpm exec playwright test
 ```
 
-The twelve flows cover first run and persistence, countdown tiles, tabs and tab-state preservation, the single bleeding-intensity control, active-day edge case, inline day panel, event icons/legend, note editing, undo, keyboard operation, backdating and future refusal, pause mode, history add/edit/delete, ICS download, export → erase → import, strict CSP and offline reload. All selectors use the same Lithuanian copy as the app.
+The seventeen flows cover first run and persistence, countdown tiles, tabs and tab-state preservation, the single bleeding-intensity control, active-day edge case, period range tap/drag/keyboard/cancel/future, inline day panel, event icons/legend, note editing, intimacy protection, undo, keyboard operation, backdating and future refusal, pause mode, history add/edit/delete, ICS download, export → erase → import, strict CSP and offline reload. All selectors use the same Lithuanian copy as the app.
 
 ## Install as a PWA
 
@@ -94,8 +95,8 @@ The canonical date is a `YYYY-MM-DD` string everywhere except inside `MonthCalen
 
 ## Verification snapshot
 
-- 82 unit tests in 7 files and 12 Playwright flows pass; `svelte-check` is clean.
-- Production build: **62.7 KB gzip JS**, 4.5 KB gzip CSS, 15 precached files (≈222 KB).
+- 89 unit tests in 8 files and 17 Playwright flows pass; `svelte-check` is clean.
+- Production build: **64.0 KB gzip JS**, 4.7 KB gzip CSS, 15 precached files (≈227 KB).
 - 390 px and 320 px: no horizontal overflow; the 2×2 countdown grid, day cells 46×46/40×40 and all tabs/controls are finger-sized. The calendar tab shows the full month above the action bar; the day panel sits below it.
 - All key text/background pairs pass 4.5:1 in both palettes; control borders are at least 3.16:1.
 - Screenshots: [`screenshots/`](screenshots/).
@@ -106,6 +107,6 @@ The canonical date is a `YYYY-MM-DD` string everywhere except inside `MonthCalen
 
 - Mobile-only by design: on a desktop it renders as a centred phone-width column.
 - TypeScript is pinned to 6.0.3 because this `svelte-check` release does not support TypeScript 7.
-- The JS bundle is about 13 KB gzip over the original 50 KB target.
+- The JS bundle is about 14 KB gzip over the original 50 KB target.
 - The UI is Lithuanian only; there is no language switch.
 - No notifications, sync or app lock, by decision.

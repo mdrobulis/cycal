@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { onDestroy } from 'svelte';
   import { Calendar } from 'bits-ui';
   import {
     getLocalTimeZone,
@@ -6,9 +7,10 @@
     today as adtToday,
     type DateValue,
   } from '@internationalized/date';
-  import { rangeSet } from '../lib/date';
+  import { formatDay, formatRange, isDayKey, rangeSet } from '../lib/date';
   import { EVENT_ICON, EVENT_ORDER, type UserEventKind } from '../lib/icon-names';
   import { recordedPeriodDays } from '../lib/periods';
+  import { app } from '../lib/store.svelte';
   import { COPY, ltCount } from '../lib/strings';
   import type { CycleStats, DayEvent, DayKey } from '../lib/types';
   import Icon from './Icon.svelte';
@@ -19,12 +21,14 @@
     today,
     selectedDay,
     onSelectDay,
+    onClearSelection,
   }: {
     events: DayEvent[];
     stats: CycleStats;
     today: DayKey;
     selectedDay: DayKey | null;
     onSelectDay: (day: DayKey) => void;
+    onClearSelection: () => void;
   } = $props();
 
   const byDay = $derived.by(() => {
@@ -68,9 +72,244 @@
     hasRecorded || hasPredicted || hasFertile || hasOvulation || legendKinds.length > 0,
   );
 
+  let calendarEl = $state<HTMLElement>();
+  let rangeMode = $state(false);
+  let rangeStart = $state<DayKey | null>(null);
+  let rangeEnd = $state<DayKey | null>(null);
+  let rangeError = $state<string | null>(null);
+  let rangeStatus = $state<string | null>(null);
+  let dragStart = $state<DayKey | null>(null);
+  let dragCurrent = $state<DayKey | null>(null);
+  let dragging = false;
+  let dragMoved = false;
+  let suppressClick = false;
+  let pointerCaptured = false;
+  let activePointerId: number | null = null;
+  let statusTimer: ReturnType<typeof setTimeout> | undefined;
+
+  const rangePreview = $derived.by(() => {
+    const anchor = dragStart ?? rangeStart;
+    if (!anchor) return null;
+    const other = dragCurrent ?? rangeEnd ?? anchor;
+    return anchor <= other ? { from: anchor, to: other } : { from: other, to: anchor };
+  });
+
+  const rangeHint = $derived(
+    rangeStart ? COPY.range.end(formatDay(rangeStart)) : COPY.range.start,
+  );
+
+  onDestroy(() => {
+    if (statusTimer) clearTimeout(statusTimer);
+  });
+
+  $effect(() => {
+    const element = calendarEl;
+    if (!element) return;
+    const swallow = (event: MouseEvent) => {
+      if (!suppressClick) return;
+      event.preventDefault();
+      event.stopPropagation();
+      suppressClick = false;
+    };
+    element.addEventListener('click', swallow, true);
+    return () => element.removeEventListener('click', swallow, true);
+  });
+
+  $effect(() => {
+    const element = calendarEl;
+    if (!element) return;
+    const down = (event: PointerEvent) => onPointerDown(event);
+    const move = (event: PointerEvent) => onPointerMove(event);
+    const up = (event: PointerEvent) => onPointerUp(event);
+    const cancel = () => onPointerCancel();
+    element.addEventListener('pointerdown', down);
+    element.addEventListener('pointermove', move);
+    element.addEventListener('pointerup', up);
+    element.addEventListener('pointercancel', cancel);
+    return () => {
+      element.removeEventListener('pointerdown', down);
+      element.removeEventListener('pointermove', move);
+      element.removeEventListener('pointerup', up);
+      element.removeEventListener('pointercancel', cancel);
+    };
+  });
+
   function handleValueChange(next: DateValue | DateValue[] | undefined): void {
     if (Array.isArray(next) || !next) return;
+    if (rangeMode) {
+      selectRangeDay(next.toString());
+      return;
+    }
     onSelectDay(next.toString());
+  }
+
+  function enterRange(): void {
+    rangeMode = true;
+    rangeStart = null;
+    rangeEnd = null;
+    rangeError = null;
+    rangeStatus = null;
+    dragStart = null;
+    dragCurrent = null;
+    dragging = false;
+    onClearSelection();
+  }
+
+  function exitRange(): void {
+    rangeMode = false;
+    rangeStart = null;
+    rangeEnd = null;
+    rangeError = null;
+    dragStart = null;
+    dragCurrent = null;
+    dragging = false;
+  }
+
+  function showRangeStatus(text: string): void {
+    rangeStatus = text;
+    if (statusTimer) clearTimeout(statusTimer);
+    statusTimer = setTimeout(() => {
+      rangeStatus = null;
+      statusTimer = undefined;
+    }, 6000);
+  }
+
+  function selectRangeDay(day: DayKey): void {
+    if (day > today) {
+      rangeError = COPY.errors.futureStart;
+      return;
+    }
+    rangeError = null;
+    if (!rangeStart) {
+      rangeStart = day;
+      rangeEnd = null;
+      return;
+    }
+    const from = rangeStart <= day ? rangeStart : day;
+    const to = rangeStart <= day ? day : rangeStart;
+    rangeStart = from;
+    rangeEnd = to;
+    void commitRange(from, to);
+  }
+
+  async function commitRange(from: DayKey, to: DayKey): Promise<void> {
+    if (to > today) {
+      rangeError = COPY.errors.futureEnd;
+      rangeEnd = null;
+      return;
+    }
+    rangeError = null;
+    try {
+      await app.addPeriodRange(from, to);
+      rangeMode = false;
+      rangeStart = null;
+      rangeEnd = null;
+      dragStart = null;
+      dragCurrent = null;
+      showRangeStatus(COPY.range.saved(formatRange(from, to)));
+    } catch (cause) {
+      rangeError = cause instanceof Error ? cause.message : COPY.errors.save;
+      rangeStart = from;
+      rangeEnd = null;
+      dragStart = null;
+      dragCurrent = null;
+    }
+  }
+
+  function dayFromTarget(target: EventTarget | null): DayKey | null {
+    if (!(target instanceof Element)) return null;
+    const cell = target.closest<HTMLElement>('.cal-day[data-value]');
+    const value = cell?.dataset.value;
+    return value && isDayKey(value) ? value : null;
+  }
+
+  function dayFromPoint(x: number, y: number): DayKey | null {
+    const element = document.elementFromPoint(x, y);
+    if (!(element instanceof Element) || !calendarEl?.contains(element)) return null;
+    return dayFromTarget(element);
+  }
+
+  function onPointerDown(event: PointerEvent): void {
+    if (!rangeMode) return;
+    if (event.pointerType === 'mouse' && event.button !== 0) return;
+    const day = dayFromTarget(event.target);
+    if (!day) return;
+    if (day > today) {
+      rangeError = COPY.errors.futureStart;
+      return;
+    }
+    rangeError = null;
+    dragStart = day;
+    dragCurrent = day;
+    dragging = true;
+    dragMoved = false;
+    pointerCaptured = false;
+    activePointerId = event.pointerId;
+  }
+
+  function onPointerMove(event: PointerEvent): void {
+    if (!rangeMode || !dragging) return;
+    const day = dayFromPoint(event.clientX, event.clientY);
+    if (!day) return;
+    if (day > today) return;
+    if (!pointerCaptured) {
+      try {
+        calendarEl?.setPointerCapture(event.pointerId);
+        pointerCaptured = true;
+      } catch {
+        // Pointer capture is optional; pointermove still reaches the section.
+      }
+    }
+    if (day !== dragStart) dragMoved = true;
+    dragCurrent = day;
+  }
+
+  function onPointerUp(event: PointerEvent): void {
+    if (!rangeMode || !dragging) return;
+    const moved = dragMoved;
+    const from = dragStart;
+    const to = dragCurrent;
+    dragging = false;
+    dragStart = null;
+    dragCurrent = null;
+    if (pointerCaptured && activePointerId !== null) {
+      try {
+        if (calendarEl?.hasPointerCapture(activePointerId)) {
+          calendarEl.releasePointerCapture(activePointerId);
+        }
+      } catch {
+        // Capture can be lost when the pointer leaves the document.
+      }
+    }
+    pointerCaptured = false;
+    activePointerId = null;
+    if (!moved || !from || !to) return;
+    const start = from <= to ? from : to;
+    const end = from <= to ? to : from;
+    rangeStart = start;
+    rangeEnd = end;
+    suppressClick = true;
+    setTimeout(() => {
+      suppressClick = false;
+    }, 500);
+    void commitRange(start, end);
+  }
+
+  function onPointerCancel(): void {
+    if (pointerCaptured && activePointerId !== null) {
+      try {
+        if (calendarEl?.hasPointerCapture(activePointerId)) {
+          calendarEl.releasePointerCapture(activePointerId);
+        }
+      } catch {
+        // Capture can be lost when the pointer leaves the document.
+      }
+    }
+    dragging = false;
+    dragStart = null;
+    dragCurrent = null;
+    pointerCaptured = false;
+    activePointerId = null;
   }
 
   function eventKinds(day: DayKey): UserEventKind[] {
@@ -100,6 +339,11 @@
     else if (predicted.has(day)) classes.push('is-predicted');
     if (fertile.has(day) && !recorded.has(day)) classes.push('is-fertile');
     if (stats.ovulation === day) classes.push('is-ovulation');
+    if (rangeMode && rangePreview) {
+      if (day >= rangePreview.from && day <= rangePreview.to) classes.push('is-range-in');
+      if (day === rangePreview.from) classes.push('is-range-start');
+      if (day === rangePreview.to) classes.push('is-range-end');
+    }
     return classes.join(' ');
   }
 
@@ -112,7 +356,12 @@
   }
 </script>
 
-<section class="calendar" aria-label={COPY.calendar.sectionAria}>
+<section
+  class="calendar"
+  class:range-mode={rangeMode}
+  bind:this={calendarEl}
+  aria-label={COPY.calendar.sectionAria}
+>
   <Calendar.Root
     type="single"
     {value}
@@ -147,6 +396,20 @@
           <Icon name="calendar" />
         </button>
       </Calendar.Header>
+
+      {#if rangeMode}
+        <div class="range-bar">
+          <p class="range-hint" role="status" aria-live="polite">{rangeHint}</p>
+          <button class="link-button" onclick={exitRange}>{COPY.common.cancel}</button>
+        </div>
+        {#if rangeError}
+          <p class="range-error" role="alert">{rangeError}</p>
+        {/if}
+      {:else}
+        <div class="range-entry">
+          <button class="link-button" onclick={enterRange}>{COPY.range.action}</button>
+        </div>
+      {/if}
 
       {#each months as month (month.value.toString())}
         <Calendar.Grid class="cal-grid">
@@ -190,6 +453,10 @@
       {/each}
     {/snippet}
   </Calendar.Root>
+
+  {#if rangeStatus}
+    <p class="range-status" role="status">{rangeStatus}</p>
+  {/if}
 
   {#if showLegend}
     <div class="cal-legend" aria-label={COPY.calendar.legendAria}>

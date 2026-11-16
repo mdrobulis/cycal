@@ -549,6 +549,80 @@ textarea {
   outline-color: var(--on-period);
 }
 
+/* Calendar range selection */
+
+.range-entry {
+  display: flex;
+  justify-content: flex-end;
+  margin: 2px 0 4px;
+}
+
+.range-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin: 2px 0 4px;
+}
+
+.range-hint {
+  margin: 0;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.35;
+}
+
+.range-bar .link-button {
+  flex: 0 0 auto;
+}
+
+.range-error {
+  margin: 0 0 6px;
+  color: var(--danger);
+  font-size: 13px;
+}
+
+.range-status {
+  margin: 8px 0 0;
+  color: var(--muted);
+  font-size: 12.5px;
+}
+
+.calendar.range-mode .cal-grid {
+  touch-action: none;
+}
+
+.cal-cell.is-range-in .cal-day::after,
+.cal-cell.is-range-start .cal-day::after,
+.cal-cell.is-range-end .cal-day::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 999px;
+  pointer-events: none;
+}
+
+.cal-cell.is-range-in .cal-day::after {
+  border: 1px solid var(--ink);
+  opacity: 0.35;
+}
+
+.cal-cell.is-range-start .cal-day::after,
+.cal-cell.is-range-end .cal-day::after {
+  border: 2px solid var(--ink);
+}
+
+.cal-cell.is-period.is-range-in .cal-day::after {
+  border-color: var(--on-period);
+  opacity: 0.65;
+}
+
+.cal-cell.is-period.is-range-start .cal-day::after,
+.cal-cell.is-period.is-range-end .cal-day::after {
+  border-color: var(--on-period);
+  opacity: 1;
+}
+
 /* Dialogs and feedback */
 
 .toast {

@@ -199,6 +199,7 @@
           today={app.today}
           selectedDay={selectedDay}
           onSelectDay={(day) => (selectedDay = day)}
+          onClearSelection={() => (selectedDay = null)}
         />
         {#if selectedDay}
           {#key selectedDay}

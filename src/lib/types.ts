@@ -13,6 +13,7 @@ export type EventKind =
 
 export type Severity = 1 | 2 | 3;
 export type FlowValue = 'light' | 'medium' | 'heavy';
+export type ProtectionValue = 'protected' | 'unprotected';
 export type PredictionMode = 'auto' | 'irregular' | 'paused';
 export type View = 'home' | 'settings' | 'history';
 export type HomeTab = 'today' | 'calendar';

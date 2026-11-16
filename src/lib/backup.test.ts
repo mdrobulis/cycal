@@ -20,6 +20,15 @@ describe('backup round trip', () => {
     expect(parsed.schema).toBe(1);
   });
 
+  it('round-trips intimacy protection', () => {
+    const file = buildBackup(
+      [event('intimacy', '2026-11-09', { value: 'protected' })],
+      settings(),
+    );
+    const parsed = parseBackup(JSON.stringify(file));
+    expect(parsed.events.map((item) => item.value)).toEqual(['protected']);
+  });
+
   it('rejects a file from another app', () => {
     expect(() => parseBackup(JSON.stringify({ app: 'other', schema: 1, events: [] }))).toThrow(
       /Tai ne Cycal kopija/,
@@ -59,6 +68,11 @@ describe('event validation', () => {
         createdAt: '2026-11-09T10:00:00.000Z',
       }),
     ).toBe(true);
+  });
+
+  it('accepts intimacy with and without a protection value', () => {
+    expect(isValidEvent(event('intimacy', '2026-11-09', { value: 'protected' }))).toBe(true);
+    expect(isValidEvent(event('intimacy', '2026-11-09'))).toBe(true);
   });
 
   it('rejects bad severity, date and kind', () => {

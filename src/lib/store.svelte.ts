@@ -22,6 +22,7 @@ import {
   type FlowValue,
   type HistoryCycle,
   type NewEvent,
+  type ProtectionValue,
   type Severity,
   type Settings,
   type UndoState,
@@ -307,13 +308,11 @@ class CycalStore {
     await this.addEvent({ kind: 'symptom', date, label: clean });
   }
 
-  async toggleIntimacy(date: DayKey): Promise<void> {
-    const existing = this.eventsForDay(date).find((event) => event.kind === 'intimacy');
-    if (existing) {
-      await this.#removeSilent(existing.id);
-      return;
-    }
-    await this.addEvent({ kind: 'intimacy', date });
+  async setIntimacy(date: DayKey, value: ProtectionValue): Promise<void> {
+    const existing = this.eventsForDay(date).filter((event) => event.kind === 'intimacy');
+    if (existing.length === 1 && existing[0]!.value === value) return;
+    for (const event of existing) await this.#removeSilent(event.id);
+    await this.addEvent({ kind: 'intimacy', date, value });
   }
 
   async addNote(date: DayKey, text: string): Promise<void> {

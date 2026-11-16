@@ -5,20 +5,21 @@
   import { eventIcon } from '../lib/icon-names';
   import {
     MOODS,
+    PROTECTIONS,
     SEVERITIES,
     SYMPTOMS,
     eventDetail,
     eventLabel,
   } from '../lib/vocab';
   import { COPY } from '../lib/strings';
-  import type { DayEvent, DayKey, Severity } from '../lib/types';
+  import type { DayEvent, DayKey, ProtectionValue, Severity } from '../lib/types';
   import BleedingControl from './BleedingControl.svelte';
   import Icon from './Icon.svelte';
 
   let { date, onClose }: { date: DayKey; onClose: () => void } = $props();
 
   let panel = $state<HTMLElement>();
-  let panelOpen = $state<null | 'symptom' | 'symptomOther' | 'mood' | 'note' | 'custom'>(
+  let panelOpen = $state<null | 'symptom' | 'symptomOther' | 'mood' | 'intimacy' | 'note' | 'custom'>(
     null,
   );
   let note = $state('');
@@ -40,7 +41,8 @@
   const covers = $derived(app.coversPeriod(date));
   const canBleed = $derived(Boolean(active && date >= active.start && date <= app.today));
   const future = $derived(date > app.today);
-  const intimacy = $derived(events.some((event) => event.kind === 'intimacy'));
+  const intimacy = $derived(events.find((event) => event.kind === 'intimacy'));
+  const currentProtection = $derived(intimacy?.value);
   const currentMood = $derived(events.find((event) => event.kind === 'mood'));
   const currentFlow = $derived(app.flowForDay(date));
   const canMarkBleeding = $derived(!future && (canBleed || covers));
@@ -109,6 +111,13 @@
   function chooseMood(value: number): void {
     void run(async () => {
       await app.setMood(date, value);
+      panelOpen = null;
+    });
+  }
+
+  function chooseProtection(value: ProtectionValue): void {
+    void run(async () => {
+      await app.setIntimacy(date, value);
       panelOpen = null;
     });
   }
@@ -310,15 +319,7 @@
       <div class="add-grid">
         <button class="add" onclick={() => togglePanel('symptom')}>{COPY.sheet.symptom}</button>
         <button class="add" onclick={() => togglePanel('mood')}>{COPY.sheet.mood}</button>
-        <button
-          class="add"
-          class:on={intimacy}
-          aria-pressed={intimacy}
-          onclick={() => run(() => app.toggleIntimacy(date))}
-        >
-          {#if intimacy}<Icon name="check" size={14} />{/if}
-          {COPY.sheet.intimacy}
-        </button>
+        <button class="add" onclick={() => togglePanel('intimacy')}>{COPY.sheet.intimacy}</button>
         <button class="add" onclick={() => togglePanel('note')}>{COPY.sheet.note}</button>
         <button class="add" onclick={() => togglePanel('custom')}>{COPY.sheet.custom}</button>
       </div>
@@ -357,6 +358,22 @@
                 onclick={() => chooseMood(index + 1)}
               >
                 {mood}
+              </button>
+            {/each}
+          </div>
+        </div>
+      {:else if panelOpen === 'intimacy'}
+        <div class="panel">
+          <p class="panel-subtitle">{COPY.sheet.protection}</p>
+          <div class="chips" role="group" aria-label={COPY.sheet.protection}>
+            {#each PROTECTIONS as option (option.value)}
+              <button
+                class="chip"
+                class:on={currentProtection === option.value}
+                aria-pressed={currentProtection === option.value}
+                onclick={() => chooseProtection(option.value)}
+              >
+                {option.label}
               </button>
             {/each}
           </div>
@@ -565,16 +582,10 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 4px;
     min-height: 44px;
     border: 1px solid var(--line-strong);
     border-radius: var(--radius);
     font-size: 15px;
-  }
-
-  .add.on {
-    background: var(--accent-soft);
-    border-color: var(--accent);
   }
 
   .bleeding {

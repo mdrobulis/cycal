@@ -9,6 +9,8 @@ Proposal v0.1 · 13 Nov 2026 · implemented 16 Nov 2026 · single user, single d
 > **v2 UI pass (16 Nov 2026):** Today and Calendar are separate tabs; the dashboard is a glance view; the calendar uses event icons; day records open below it; and past cycles are editable. See §11.
 >
 > **v3 UI pass (16 Nov 2026):** Today is a countdown board and bleeding uses one intensity control. See §12.
+>
+> **Period range pass (16 Nov 2026):** Calendar can record a completed period by tapping or dragging its start and end. See §13.
 
 **The job, in the user's words:** *"Check where I am in my cycle, and note what happened today."*
 
@@ -192,3 +194,10 @@ The Today tab is now a countdown board: cycle day and phase are compact context,
 Bleeding now has one entry path: a three-level intensity control in the day panel (`Lengvas`, `Vidutinis`, `Stiprus`) records the bleeding day and flow together. The active card only displays the current level, opens that one control with `Keisti`, and keeps `Baigėsi` for ending the period. The old `Dar kraujuoji` and standalone `Kraujavimas` actions and the internal duplicate record row are gone.
 
 No IndexedDB, backup, settings, URL or QR changes. Verification: 82 unit tests, 12 browser flows, 62.7 KB gzip JS, 4.5 KB gzip CSS. Real iOS safe-area/screen-reader behaviour and ICS import remain untested.
+
+
+## 13. Period range entry — 16 Nov 2026
+
+Calendar now has an optional `Žymėti intervalą` mode. Tap a start and end, or press on a date and drag to another date, and the period is saved as a completed `period-start`/`period-end` range in one action. Taps continue to work through the normal calendar selection; drags use pointer events with delayed capture, a click guard and grid-only `touch-action:none`. Invalid future/overlap/order ranges reuse the existing validation errors and stay editable. Range mode does not set bleeding intensity; the day-panel control remains the single intensity entry.
+
+No IndexedDB, backup, settings, URL or QR changes. Verification: 89 unit tests, 17 browser flows, 64.0 KB gzip JS, 4.7 KB gzip CSS.

@@ -1,12 +1,14 @@
 import { readFile } from 'node:fs/promises';
 import { expect, test, type Page } from '@playwright/test';
 import { COPY, ltCount } from '../src/lib/strings';
-import { FLOWS, SYMPTOMS } from '../src/lib/vocab';
+import { FLOWS, PROTECTIONS, SYMPTOMS } from '../src/lib/vocab';
 
 const SYMPTOM = SYMPTOMS[0]!;
 const MEDIUM = FLOWS.find((flow) => flow.value === 'medium')!.label;
 const HEAVY = FLOWS.find((flow) => flow.value === 'heavy')!.label;
 const LIGHT = FLOWS.find((flow) => flow.value === 'light')!.label;
+const PROTECTED = PROTECTIONS.find((entry) => entry.value === 'protected')!.label;
+const UNPROTECTED = PROTECTIONS.find((entry) => entry.value === 'unprotected')!.label;
 const OLD_STILL = 'Dar kraujuoji';
 
 function collectErrors(page: Page): string[] {
@@ -43,6 +45,29 @@ async function openCalendar(page: Page): Promise<void> {
 async function closePanel(page: Page): Promise<void> {
   await page.locator('.day-panel').getByRole('button', { name: COPY.common.close }).click();
   await expect(page.locator('.day-panel')).toHaveCount(0);
+}
+
+async function storedEvents(
+  page: Page,
+): Promise<Array<{ date: string; kind: string; value?: string }>> {
+  return page.evaluate(async () => {
+    const db = await new Promise<IDBDatabase>((resolve, reject) => {
+      const request = indexedDB.open('cycal');
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error);
+    });
+    const events = await new Promise<Array<{ date: string; kind: string; value?: string }>>(
+      (resolve, reject) => {
+        const transaction = db.transaction('events', 'readonly');
+        const request = transaction.objectStore('events').getAll();
+        request.onsuccess = () =>
+          resolve(request.result as Array<{ date: string; kind: string; value?: string }>);
+        request.onerror = () => reject(request.error);
+      },
+    );
+    db.close();
+    return events;
+  });
 }
 
 test('pirmas paleidimas: vienas kraujavimo valdiklis ir dienos įrašai išlieka', async ({
@@ -214,6 +239,150 @@ test('dienos panelė leidžia redaguoti pastabą, o kalendorius lieka matomas', 
   await expect(page.locator('.cal-legend')).toContainText(COPY.sheet.note);
   await closePanel(page);
   expect(errors).toEqual([]);
+});
+
+test('intymumas turi apsaugos detalę', async ({ page }) => {
+  const errors = collectErrors(page);
+  await page.goto('/');
+  await openCalendar(page);
+  await page.locator('.cal-day[data-today]').click();
+
+  await page.getByRole('button', { name: COPY.sheet.intimacy, exact: true }).click();
+  const protection = page.getByRole('group', { name: COPY.sheet.protection });
+  await expect(protection).toBeVisible();
+  await protection.getByRole('button', { name: PROTECTED, exact: true }).click();
+  await expect(page.locator('.event-detail')).toHaveText(PROTECTED);
+  await expect(
+    page.locator('.event-label').filter({ hasText: COPY.sheet.intimacy }),
+  ).toHaveCount(1);
+
+  await page.getByRole('button', { name: COPY.sheet.intimacy, exact: true }).click();
+  await expect(
+    protection.getByRole('button', { name: PROTECTED, exact: true }),
+  ).toHaveAttribute('aria-pressed', 'true');
+  await protection.getByRole('button', { name: UNPROTECTED, exact: true }).click();
+  await expect(page.locator('.event-detail')).toHaveText(UNPROTECTED);
+  await expect(
+    page.locator('.event-label').filter({ hasText: COPY.sheet.intimacy }),
+  ).toHaveCount(1);
+
+  const stored = await page.evaluate(async () => {
+    const db = await new Promise<IDBDatabase>((resolve, reject) => {
+      const request = indexedDB.open('cycal');
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error);
+    });
+    const events = await new Promise<Array<{ kind: string; value?: string }>>(
+      (resolve, reject) => {
+        const transaction = db.transaction('events', 'readonly');
+        const request = transaction.objectStore('events').getAll();
+        request.onsuccess = () =>
+          resolve(request.result as Array<{ kind: string; value?: string }>);
+        request.onerror = () => reject(request.error);
+      },
+    );
+    db.close();
+    return events;
+  });
+  expect(
+    stored.some((event) => event.kind === 'intimacy' && event.value === 'unprotected'),
+  ).toBe(true);
+
+  await page.reload();
+  await openCalendar(page);
+  await page.locator('.cal-day[data-today]').click();
+  await expect(page.locator('.event-detail')).toHaveText(UNPROTECTED);
+  expect(errors).toEqual([]);
+});
+
+test('intervalą galima pažymėti dviem bakstelėjimais', async ({ page }) => {
+  const errors = collectErrors(page);
+  await page.goto('/');
+  await openCalendar(page);
+  await page.getByRole('button', { name: COPY.range.action }).click();
+  await expect(page.locator('.range-bar')).toBeVisible();
+  await expect(page.locator('.range-hint')).toHaveText(COPY.range.start);
+
+  const start = offsetDayKey(-10);
+  const end = offsetDayKey(-6);
+  await page.locator(`.cal-day[data-value="${start}"]`).click();
+  await expect(page.locator('.cal-cell.is-range-start .cal-day')).toHaveCount(1);
+  await expect(page.locator('.range-hint')).toContainText('Pradžia:');
+
+  await page.locator(`.cal-day[data-value="${end}"]`).click();
+  await expect(page.locator('.range-status')).toContainText('Mėnesinės įrašytos:');
+  await expect(page.locator('.range-bar')).toHaveCount(0);
+  await expect(page.locator('.day-panel')).toHaveCount(0);
+
+  const events = await storedEvents(page);
+  expect(events.some((event) => event.date === start && event.kind === 'period-start')).toBe(
+    true,
+  );
+  expect(events.some((event) => event.date === end && event.kind === 'period-end')).toBe(true);
+  expect(errors).toEqual([]);
+});
+
+test('intervalą galima braukti vienu gestu', async ({ page }) => {
+  const errors = collectErrors(page);
+  await page.goto('/');
+  await openCalendar(page);
+  await page.getByRole('button', { name: COPY.range.action }).click();
+
+  const start = offsetDayKey(-10);
+  const end = offsetDayKey(-6);
+  const startCell = page.locator(`.cal-day[data-value="${start}"]`);
+  const endCell = page.locator(`.cal-day[data-value="${end}"]`);
+  await startCell.scrollIntoViewIfNeeded();
+  const from = await startCell.boundingBox();
+  const to = await endCell.boundingBox();
+  expect(from).not.toBeNull();
+  expect(to).not.toBeNull();
+
+  await page.mouse.move(from!.x + from!.width / 2, from!.y + from!.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(to!.x + to!.width / 2, to!.y + to!.height / 2, { steps: 8 });
+  await page.mouse.up();
+
+  await expect(page.locator('.range-status')).toContainText('Mėnesinės įrašytos:');
+  await expect(page.locator('.day-panel')).toHaveCount(0);
+  const events = await storedEvents(page);
+  expect(events.some((event) => event.date === start && event.kind === 'period-start')).toBe(
+    true,
+  );
+  expect(events.some((event) => event.date === end && event.kind === 'period-end')).toBe(true);
+  expect(errors).toEqual([]);
+});
+
+test('intervalo režimą galima atšaukti, o ateitis atmetama', async ({ page }) => {
+  await page.goto('/');
+  await openCalendar(page);
+  await page.getByRole('button', { name: COPY.range.action }).click();
+
+  const future = offsetDayKey(5);
+  await page.locator(`.cal-day[data-value="${future}"]`).click();
+  await expect(page.locator('.range-error')).toContainText(COPY.errors.futureStart);
+  await expect(page.locator('.range-bar')).toBeVisible();
+  await page
+    .locator('.range-bar')
+    .getByRole('button', { name: COPY.common.cancel })
+    .click();
+  await expect(page.locator('.range-bar')).toHaveCount(0);
+  expect(await storedEvents(page)).toEqual([]);
+});
+
+test('intervalą galima pasirinkti klaviatūra', async ({ page }) => {
+  await page.goto('/');
+  await openCalendar(page);
+  await page.getByRole('button', { name: COPY.range.action }).click();
+
+  const start = offsetDayKey(-10);
+  const end = offsetDayKey(-6);
+  await page.locator(`.cal-day[data-value="${start}"]`).focus();
+  await page.keyboard.press('Enter');
+  await expect(page.locator('.range-hint')).toContainText('Pradžia:');
+  await page.locator(`.cal-day[data-value="${end}"]`).focus();
+  await page.keyboard.press('Enter');
+  await expect(page.locator('.range-status')).toContainText('Mėnesinės įrašytos:');
 });
 
 test('turi griežtą CSP ir neįkelia nieko iš išorės', async ({ page }) => {

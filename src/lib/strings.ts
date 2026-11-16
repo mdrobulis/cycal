@@ -146,6 +146,12 @@ export const COPY = {
     unmarked: 'Nepažymėta',
     change: 'Keisti',
   },
+  range: {
+    action: 'Žymėti intervalą',
+    start: 'Pasirink pradžią arba brauk',
+    end: (date: string) => `Pradžia: ${date} · Pasirink pabaigą`,
+    saved: (range: string) => `Mėnesinės įrašytos: ${range}`,
+  },
   period: {
     day: (days: number) =>
       days > 10 ? `Mėnesinės atviros: ${days} d.` : `Mėnesinės: ${days} d.`,
@@ -168,6 +174,8 @@ export const COPY = {
     mood: 'Nuotaika',
     flow: 'Kraujavimas',
     intimacy: 'Intymumas',
+    protection: 'Apsauga',
+    protectionUnknown: 'Apsauga nenurodyta',
     note: 'Pastaba',
     custom: 'Kita',
     symptomOther: 'Kita…',
