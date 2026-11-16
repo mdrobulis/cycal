@@ -2,6 +2,7 @@
   import { backupAgeDays } from '../lib/backup';
   import { diffDays, isDayKey } from '../lib/date';
   import { app } from '../lib/store.svelte';
+  import { COPY } from '../lib/strings';
 
   let { onExport }: { onExport: () => void } = $props();
 
@@ -24,9 +25,9 @@
 
 {#if show}
   <p class="nudge" role="status">
-    <span>{age === null ? 'No backup yet.' : `Backup is ${age} days old.`}</span>
-    <button class="link-button" onclick={onExport}>Export</button>
-    <button class="link-button" onclick={dismiss}>Dismiss</button>
+    <span>{age === null ? COPY.nudge.noBackup : COPY.nudge.old(age)}</span>
+    <button class="link-button" onclick={onExport}>{COPY.nudge.export}</button>
+    <button class="link-button" onclick={dismiss}>{COPY.nudge.dismiss}</button>
   </p>
 {/if}
 

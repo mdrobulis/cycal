@@ -2,6 +2,8 @@
 
 Status: v4 · implemented and verified 16 Nov 2026
 
+> **v1.1 UI pass (16 Nov 2026):** the shipped UI is now Lithuanian, the palette and calendar marks were reworked for contrast, and the calendar gained a dated summary of the visible month. The original "English UI" decision and §11 build numbers are historical; see §12.
+
 A local-only **Vite + Svelte 5 SPA PWA** for one person, with the month grid built on **Bits UI Calendar** and styled entirely from our own tokens. No account, no backend, no telemetry.
 
 ## Confirmed decisions
@@ -357,3 +359,22 @@ All confirmed v1 scope is implemented in `src/`.
 **Not verified:** iOS Safari install and storage eviction, real screen-reader output, and importing the `.ics` file into Apple or Google Calendar. No notifications, sync or app lock by design.
 
 **Tooling notes:** TypeScript is pinned to 6.0.3 because `svelte-check` 4.7 rejects TypeScript 7; Playwright's Chromium lives in the gitignored `.playwright-browsers/`. The Pages build uses `VITE_BASE=/cycal/` and registers the service worker from that base; a local `/cycal/` static-server test covers manifest scope and offline reload.
+
+
+## 12. v1.1 UI pass — 16 Nov 2026
+
+The v1 mechanics, schema, URLs and QR stayed unchanged. This pass changed presentation and copy only.
+
+**Language and dates.** All visible strings, error messages, ARIA labels and calendar labels are Lithuanian. Dates use deterministic arrays rather than `Intl` short months (lt-LT returns numeric months): `lapkr. 16 d.`, `lapkr. 18–24 d.`, `2026 m. lapkričio 16 d.`, `pirmadienis`. A Lithuanian plural helper covers `įrašas/įrašai/įrašų` and `ciklas/ciklai/ciklų`. The `.ics` export is Lithuanian and folds at 75 UTF-8 bytes, not 75 characters. `lang="lt"` is set on the document and manifest.
+
+**Palette.** Light: ink `#12100F` (18.0:1), muted `#4F4944` (8.4:1), accent `#6A2C4A` (9.6:1), control border `#8F8577` (3.45:1), period fill `#6A2C4A` with white (10.1:1), fertile `#E4DCCB` (ink 13.9:1). Dark: ink `#F5F1EB` (16.8:1), muted `#C3BBB1` (9.9:1), accent `#E3A9C2` (9.6:1), control border `#6B6259` (3.16:1), period fill `#8E4E6B` with white (6.1:1), fertile `#3A332A` (ink 11.1:1). All text pairs pass AA; control borders pass 3:1.
+
+**Calendar.** Recorded period = solid fill; predicted = 2 px dashed accent + tint; fertile = warm tint + 2 px dotted underline; ovulation = 2 px ring around the number; logged events = up to three 4 px dots; today = 2 px inset ring; selected = 2 px outer accent ring. The dated summary above the grid clips each range to the visible month and doubles as the legend. Previous/next/today moved into the calendar header; the bottom nav was removed.
+
+**Dashboard.** Two-column stat grid with a wide next-period cell; the hero and status share one row. At 390×844 the today cell ends at 775.9 px and the action bar starts at 779 px, so today is fully visible. The active-period card is one row at 390 and wraps at 320.
+
+**Verification.** `pnpm check` clean; 64 unit tests in 6 files; 9 Playwright flows; build 57.8 KB gzip JS, 4.0 KB gzip CSS, 15 precached files (202 KiB). No horizontal overflow at 390 or 320; day cells 46×46 and 40×40; zero visible controls below 44 px. All accessible labels checked: prev/next are Lithuanian, day names are full Lithuanian dates.
+
+**Fixed during this pass.** Bits UI's prev/next buttons overrode the Lithuanian `aria-label` with “Previous/Next” — replaced with custom buttons. The year select truncated at 320 — narrow-width header widths. The today cell sat under the action bar — compact hero/active bar and spacing. Sheet chips and severity buttons were 40 px — raised to 44 px. The duplicate irregular-cycle note moved to the calendar summary only.
+
+**Still not verified:** real iOS install/storage eviction, real screen-reader output, and importing the `.ics` into Apple/Google Calendar. The live URL and QR are unchanged.

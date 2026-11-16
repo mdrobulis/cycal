@@ -2,7 +2,7 @@
   import { onMount } from 'svelte';
   import { app } from './lib/store.svelte';
   import { exportBackup } from './lib/backup';
-  import { STORAGE_BLOCKED } from './lib/strings';
+  import { COPY } from './lib/strings';
   import type { DayKey, View } from './lib/types';
   import ActivePeriodCard from './components/ActivePeriodCard.svelte';
   import BackupNudge from './components/BackupNudge.svelte';
@@ -49,7 +49,7 @@
       const result = await app.markPeriodStart(app.today);
       if (result === 'exists') sheetDate = app.today;
     } catch (cause) {
-      actionError = cause instanceof Error ? cause.message : 'Could not save that.';
+      actionError = cause instanceof Error ? cause.message : COPY.errors.save;
     }
   }
 
@@ -58,7 +58,7 @@
     try {
       await task();
     } catch (cause) {
-      actionError = cause instanceof Error ? cause.message : 'Could not save that.';
+      actionError = cause instanceof Error ? cause.message : COPY.errors.save;
     }
   }
 </script>
@@ -67,19 +67,19 @@
   {#if view === 'home'}
     <header class="topbar">
       <h1 class="wordmark">Cycal</h1>
-      <button class="icon-btn" aria-label="Settings" onclick={() => go('settings')}>
+      <button class="icon-btn" aria-label={COPY.app.settingsAria} onclick={() => go('settings')}>
         <Icon name="settings" />
       </button>
     </header>
   {/if}
 
   {#if app.storageBlocked}
-    <p class="banner" role="alert">{STORAGE_BLOCKED}</p>
+    <p class="banner" role="alert">{COPY.app.storageBlocked}</p>
   {/if}
 
   <main>
     {#if !app.ready}
-      <p class="loading">Loading…</p>
+      <p class="loading">{COPY.common.loading}</p>
     {:else if view === 'settings'}
       <Settings onBack={() => go('home')} onHistory={() => go('history')} onExport={exportNow} />
     {:else if view === 'history'}
@@ -111,7 +111,7 @@
           onEnded={() => runAction(() => app.endActivePeriod(app.today))}
         />
       {:else}
-        <button class="primary" onclick={markToday}>Mark period start</button>
+        <button class="primary" onclick={markToday}>{COPY.app.markPeriod}</button>
       {/if}
     </div>
   </footer>

@@ -1,6 +1,6 @@
 # Cycal
 
-A private, offline menstrual-cycle tracker. One person, one phone, no account, no server. All data stays in the browser's IndexedDB on the device.
+A private, offline menstrual-cycle tracker. One person, one phone, no account, no server. All data stays in the browser's IndexedDB on the device. The interface is in Lithuanian.
 
 **Live:** [https://mdrobulis.github.io/cycal/](https://mdrobulis.github.io/cycal/)
 
@@ -16,7 +16,7 @@ Built from [PROPOSAL.md](PROPOSAL.md); the decisions and build report live in [P
 
 - **Dashboard:** cycle day, next period, fertile window, ovulation, PMS window, last period.
 - **Period logging:** mark a start, confirm "still bleeding" on later days, end it when it stops. A period can be entered on any past day.
-- **Calendar:** recorded period days, predicted period days (dashed), fertile window, ovulation and logged events. Month and year can be jumped directly; keyboard navigation works.
+- **Calendar:** solid recorded period days, dashed predicted days, fertile tint with a dotted underline, ovulation ring, logged-event dots, and a dated summary of the visible month. Month/year selects and previous/next/today controls sit in the calendar header; keyboard navigation works.
 - **Day sheet:** symptoms (with mild/moderate/severe), mood, flow, intimacy, notes and custom labels, all with delete + undo.
 - **Predictions:** median of recent cycles, a 28-day default until two cycles exist, ranges when cycles vary, and Auto / Irregular / Paused modes.
 - **Data:** cycle history, JSON backup and restore, `.ics` prediction export, erase-all, and a backup nudge.
@@ -39,7 +39,7 @@ Requires Node 22+ and pnpm.
 
 ```bash
 pnpm check        # svelte-check: 0 errors, 0 warnings
-pnpm test         # Vitest: date math, periods, cycle prediction, backup, ICS
+pnpm test         # Vitest: date math, Lithuanian dates, plural rules, periods, cycle prediction, backup, ICS
 ```
 
 The browser suite needs Chromium. It is kept inside the workspace so it does not touch global caches:
@@ -49,7 +49,7 @@ PLAYWRIGHT_BROWSERS_PATH="$PWD/.playwright-browsers" pnpm exec playwright instal
 PLAYWRIGHT_BROWSERS_PATH="$PWD/.playwright-browsers" pnpm exec playwright test
 ```
 
-The nine flows cover first run and persistence, undo, still-bleeding/ended, keyboard operation, backdating and future refusal, pause mode, ICS download, export → erase → import, strict CSP and offline reload.
+The nine flows cover first run and persistence, undo, still-bleeding/ended, keyboard operation, backdating and future refusal, pause mode, ICS download, export → erase → import, strict CSP and offline reload. All selectors use the same Lithuanian copy as the app.
 
 ## Install as a PWA
 
@@ -90,10 +90,10 @@ The canonical date is a `YYYY-MM-DD` string everywhere except inside `MonthCalen
 
 ## Verification snapshot
 
-- 55 unit tests and 9 Playwright flows pass; `svelte-check` is clean.
-- Production build: **54.7 KB gzip JS**, 3.7 KB gzip CSS, 15 precached files (≈190 KB).
-- 390 px and 320 px: no horizontal overflow; day cells 46×46 and 40×40; no visible control below 44 px.
-- All key text/background pairs pass 4.5:1 in both palettes.
+- 64 unit tests in 6 files and 9 Playwright flows pass; `svelte-check` is clean.
+- Production build: **57.8 KB gzip JS**, 4.0 KB gzip CSS, 15 precached files (≈202 KB).
+- 390 px and 320 px: no horizontal overflow; day cells 46×46 and 40×40; no visible control below 44 px. At 390, the today cell clears the fixed action bar.
+- All key text/background pairs pass 4.5:1 in both palettes; control borders are at least 3.16:1.
 - Screenshots: [`screenshots/`](screenshots/).
 
 **Not verified:** a real iOS install and storage-eviction behaviour, real screen-reader output, and importing the `.ics` file into Apple/Google Calendar. Those are untested, not claimed.
@@ -102,5 +102,6 @@ The canonical date is a `YYYY-MM-DD` string everywhere except inside `MonthCalen
 
 - Mobile-only by design: on a desktop it renders as a centred phone-width column.
 - TypeScript is pinned to 6.0.3 because this `svelte-check` release does not support TypeScript 7.
-- The JS bundle is about 5 KB gzip over the original 50 KB target.
+- The JS bundle is about 8 KB gzip over the original 50 KB target.
+- The UI is Lithuanian only; there is no language switch.
 - No notifications, sync or app lock, by decision.

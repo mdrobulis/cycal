@@ -1,65 +1,68 @@
+import { COPY } from './strings';
 import type { DayEvent, FlowValue, Severity } from './types';
 
 export const SYMPTOMS = [
-  'Cramps',
-  'Headache',
-  'Bloating',
-  'Fatigue',
-  'Back pain',
-  'Nausea',
-  'Tender breasts',
-  'Acne',
-  'Cravings',
-  'Dizziness',
-  'Insomnia',
+  'Pilvo skausmai',
+  'Galvos skausmas',
+  'Pilvo pūtimas',
+  'Nuovargis',
+  'Nugaros skausmas',
+  'Pykinimas',
+  'Krūtų jautrumas',
+  'Spuogai',
+  'Potraukis maistui',
+  'Galvos svaigimas',
+  'Nemiga',
 ] as const;
 
-export const MOODS = ['Awful', 'Low', 'Okay', 'Good', 'Great'] as const;
+export const MOODS = ['Blogai', 'Prastai', 'Vidutiniškai', 'Gerai', 'Puikiai'] as const;
 
 export const FLOWS: ReadonlyArray<{ value: FlowValue; label: string }> = [
-  { value: 'light', label: 'Light' },
-  { value: 'medium', label: 'Medium' },
-  { value: 'heavy', label: 'Heavy' },
+  { value: 'light', label: 'Lengvas' },
+  { value: 'medium', label: 'Vidutinis' },
+  { value: 'heavy', label: 'Stiprus' },
 ];
 
 export const SEVERITIES: ReadonlyArray<{ value: Severity; label: string }> = [
-  { value: 1, label: 'Mild' },
-  { value: 2, label: 'Moderate' },
-  { value: 3, label: 'Severe' },
+  { value: 1, label: 'Silpnas' },
+  { value: 2, label: 'Vidutinis' },
+  { value: 3, label: 'Stiprus' },
 ];
 
 export function severityLabel(value: unknown): string {
-  return SEVERITIES.find((s) => s.value === value)?.label ?? '';
+  return SEVERITIES.find((entry) => entry.value === value)?.label ?? '';
 }
 
 export function moodLabel(value: unknown): string {
-  return typeof value === 'number' && value >= 1 && value <= 5 ? MOODS[value - 1]! : 'Mood';
+  return typeof value === 'number' && value >= 1 && value <= 5
+    ? MOODS[value - 1]!
+    : COPY.sheet.mood;
 }
 
 export function flowLabel(value: unknown): string {
-  return FLOWS.find((f) => f.value === value)?.label ?? '';
+  return FLOWS.find((entry) => entry.value === value)?.label ?? '';
 }
 
 export function eventLabel(event: DayEvent): string {
   switch (event.kind) {
     case 'period-start':
-      return 'Period started';
+      return COPY.period.started;
     case 'period-day':
-      return 'Bleeding';
+      return COPY.period.bleeding;
     case 'period-end':
-      return 'Period ended';
+      return COPY.period.finished;
     case 'symptom':
-      return event.label ?? 'Symptom';
+      return event.label ?? COPY.sheet.symptom;
     case 'mood':
-      return 'Mood';
+      return COPY.sheet.mood;
     case 'flow':
-      return 'Flow';
+      return COPY.sheet.flow;
     case 'intimacy':
-      return 'Intimacy';
+      return COPY.sheet.intimacy;
     case 'note':
-      return 'Note';
+      return COPY.sheet.note;
     case 'custom':
-      return event.label ?? 'Custom';
+      return event.label ?? COPY.sheet.custom;
   }
 }
 

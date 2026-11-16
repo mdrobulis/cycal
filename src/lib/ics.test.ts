@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { buildPredictionICS } from './ics';
+import { buildPredictionICS, foldLine } from './ics';
 import { event, settings } from './test-utils';
 
 const NOW = new Date('2026-11-16T08:00:00Z');
@@ -19,25 +19,37 @@ describe('prediction calendar export', () => {
     expect(text).toContain('DTSTAMP:20261116T080000Z');
     expect(text).toContain('DTSTART;VALUE=DATE:20261207');
     expect(text).toContain('DTEND;VALUE=DATE:20261212');
-    expect(text).toContain('SUMMARY:Period (estimate)');
-    expect(text).toContain('SUMMARY:Fertile window (estimate)');
-    expect(text).toContain('SUMMARY:PMS window (estimate)');
+    expect(text).toContain('SUMMARY:Mėnesinės (prognozė)');
+    expect(text).toContain('SUMMARY:Vaisingos dienos (prognozė)');
+    expect(text).toContain('SUMMARY:PMS (prognozė)');
     expect(text).toContain('UID:cycal-period-2026-12-07@cycal.local');
-    expect(text).toContain('Estimated ovulation around 2026-11-23');
-    expect(text).toContain('not contraception');
+    expect(text).toContain('Ovuliacija apie 2026-11-23');
+    expect(text).toContain('ne kontracepcija');
   });
 
-  it('keeps every content line within 75 characters', () => {
+  it('keeps every content line within 75 UTF-8 bytes', () => {
     const text = buildPredictionICS(
       [event('period-start', '2026-11-09')],
       settings(),
       '2026-11-16',
       NOW,
     );
+    const encoder = new TextEncoder();
     const lines = text.split('\r\n');
     for (const line of lines) {
-      expect(line.length, line).toBeLessThanOrEqual(75);
+      expect(encoder.encode(line).length, line).toBeLessThanOrEqual(75);
     }
+  });
+
+  it('folds long Lithuanian lines at a code point boundary', () => {
+    const line = `DESCRIPTION:${'ė'.repeat(80)}`;
+    const folded = foldLine(line);
+    const encoder = new TextEncoder();
+    for (const chunk of folded.split('\r\n')) {
+      expect(encoder.encode(chunk).length).toBeLessThanOrEqual(75);
+    }
+    expect(folded).not.toContain('\uFFFD');
+    expect(folded.replace(/\r\n /g, '')).toBe(line);
   });
 
   it('refuses paused and irregular predictions', () => {
@@ -48,7 +60,7 @@ describe('prediction calendar export', () => {
         '2026-11-16',
         NOW,
       ),
-    ).toThrow(/not available/);
+    ).toThrow(/negalimos/);
 
     expect(() =>
       buildPredictionICS(
@@ -61,7 +73,7 @@ describe('prediction calendar export', () => {
         '2026-12-10',
         NOW,
       ),
-    ).toThrow(/not available/);
+    ).toThrow(/negalimos/);
   });
 
   it('uses an exclusive end date for the period block', () => {

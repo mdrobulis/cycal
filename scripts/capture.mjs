@@ -44,9 +44,9 @@ for (const start of starts) {
   events.push(event('period-end', addDays(start, 4)));
 }
 events.push(event('flow', addDays(starts[2], 1), { value: 'medium' }));
-events.push(event('symptom', offsetKey(-2), { label: 'Cramps', severity: 2 }));
+events.push(event('symptom', offsetKey(-2), { label: 'Pilvo skausmai', severity: 2 }));
 events.push(event('mood', offsetKey(-1), { value: 4 }));
-events.push(event('note', offsetKey(-6), { note: 'Long walk, felt good' }));
+events.push(event('note', offsetKey(-6), { note: 'Ilgas pasivaikščiojimas, jaučiausi gerai' }));
 events.push(event('intimacy', offsetKey(-3)));
 
 async function seed(page) {
@@ -111,11 +111,11 @@ await page.locator(`.cal-day[data-value="${offsetKey(-2)}"]`).click();
 await page.getByRole('dialog').waitFor();
 await page.waitForTimeout(150);
 await page.screenshot({ path: `${OUT}/day-sheet-390.png` });
-await page.getByRole('button', { name: 'Done' }).click();
+await page.getByRole('button', { name: 'Gerai' }).click();
 
-await page.getByRole('button', { name: 'Settings' }).click();
+await page.getByRole('button', { name: 'Nustatymai' }).click();
 await page.screenshot({ path: `${OUT}/settings-390.png`, fullPage: true });
-await page.getByRole('button', { name: 'Cycle history' }).click();
+await page.getByRole('button', { name: 'Ciklų istorija' }).click();
 await page.screenshot({ path: `${OUT}/history-390.png`, fullPage: true });
 report.errors = errors;
 await light.close();

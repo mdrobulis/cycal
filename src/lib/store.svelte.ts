@@ -3,6 +3,7 @@ import { computeHistory, computeStats } from './cycle';
 import { endDateForActive, findActivePeriod, periodCoversDate } from './periods';
 import * as db from './db';
 import { isValidEvent, mergeEvents } from './backup';
+import { COPY } from './strings';
 import {
   DEFAULT_SETTINGS,
   normalizeSettings,
@@ -113,7 +114,7 @@ class CycalStore {
     if (!event) return;
     if (!this.storageBlocked) await db.deleteEvent(id);
     this.events = this.events.filter((candidate) => candidate.id !== id);
-    this.#setUndo({ event, message: 'Event deleted' });
+    this.#setUndo({ event, message: COPY.sheet.undoMessage });
   }
 
   async undoLast(): Promise<void> {
@@ -136,7 +137,7 @@ class CycalStore {
   }
 
   async markPeriodStart(date: DayKey): Promise<'created' | 'exists'> {
-    if (date > this.today) throw new Error("A period can't start in the future.");
+    if (date > this.today) throw new Error(COPY.errors.futureStart);
     if (this.hasEvent(date, 'period-start')) return 'exists';
 
     const active = this.activePeriod;
@@ -151,10 +152,10 @@ class CycalStore {
   }
 
   async addPeriodDay(date: DayKey): Promise<void> {
-    if (date > this.today) throw new Error("A bleeding day can't be in the future.");
+    if (date > this.today) throw new Error(COPY.errors.futureBleeding);
     const active = this.activePeriod;
     if (!active || date < active.start) {
-      throw new Error('No period is open on this day.');
+      throw new Error(COPY.errors.noOpenPeriodDay);
     }
     if (this.hasEvent(date, 'period-day')) return;
     await this.addEvent({ kind: 'period-day', date });
@@ -162,9 +163,9 @@ class CycalStore {
 
   async markPeriodEnd(date: DayKey): Promise<void> {
     const active = this.activePeriod;
-    if (!active) throw new Error('No period is open.');
-    if (date < active.start) throw new Error("The end can't be before the start.");
-    if (date > this.today) throw new Error("A period can't end in the future.");
+    if (!active) throw new Error(COPY.errors.noOpenPeriod);
+    if (date < active.start) throw new Error(COPY.errors.endBeforeStart);
+    if (date > this.today) throw new Error(COPY.errors.futureEnd);
     if (this.hasEvent(date, 'period-end')) return;
 
     await this.addEvent({ kind: 'period-end', date });
@@ -183,7 +184,7 @@ class CycalStore {
 
   async setMood(date: DayKey, value: number): Promise<void> {
     const mood = Math.round(value);
-    if (mood < 1 || mood > 5) throw new Error('Mood must be between 1 and 5.');
+    if (mood < 1 || mood > 5) throw new Error(COPY.errors.moodRange);
     const existing = this.eventsForDay(date).filter((event) => event.kind === 'mood');
     if (existing.length === 1 && existing[0]!.value === mood) return;
     for (const event of existing) await this.#removeSilent(event.id);
@@ -192,7 +193,7 @@ class CycalStore {
 
   async setFlow(date: DayKey, value: 'light' | 'medium' | 'heavy'): Promise<void> {
     if (!this.coversPeriod(date)) {
-      throw new Error('Flow can only be logged on a period day.');
+      throw new Error(COPY.errors.flowOnlyPeriod);
     }
     const existing = this.eventsForDay(date).filter((event) => event.kind === 'flow');
     if (existing.length === 1 && existing[0]!.value === value) return;
@@ -202,7 +203,7 @@ class CycalStore {
 
   async addSymptom(date: DayKey, label: string): Promise<void> {
     const clean = label.trim();
-    if (!clean) throw new Error('Choose a symptom first.');
+    if (!clean) throw new Error(COPY.errors.chooseSymptom);
     const duplicate = this.eventsForDay(date).some(
       (event) => event.kind === 'symptom' && event.label?.toLowerCase() === clean.toLowerCase(),
     );
@@ -221,13 +222,13 @@ class CycalStore {
 
   async addNote(date: DayKey, text: string): Promise<void> {
     const clean = text.trim();
-    if (!clean) throw new Error('Write something first.');
+    if (!clean) throw new Error(COPY.errors.writeText);
     await this.addEvent({ kind: 'note', date, note: clean });
   }
 
   async addCustom(date: DayKey, text: string): Promise<void> {
     const clean = text.trim();
-    if (!clean) throw new Error('Name the event first.');
+    if (!clean) throw new Error(COPY.errors.nameEvent);
     await this.addEvent({ kind: 'custom', date, label: clean });
   }
 

@@ -2,15 +2,18 @@
   color-scheme: light;
   --bg: #faf9f7;
   --surface: #ffffff;
-  --ink: #1c1a19;
-  --muted: #6f6862;
-  --line: #e8e2da;
-  --hover: #f0eae4;
-  --accent: #7a3b5c;
-  --accent-soft: #f2e6ec;
-  --fertile-soft: #efeae3;
+  --ink: #12100f;
+  --muted: #4f4944;
+  --line: #d5cdc2;
+  --line-strong: #8f8577;
+  --hover: #efe9e2;
+  --accent: #6a2c4a;
+  --accent-soft: #e8cdd9;
+  --period-fill: #6a2c4a;
+  --on-period: #ffffff;
+  --fertile-soft: #e4dccb;
   --on-accent: #ffffff;
-  --danger: #8c2f2f;
+  --danger: #7a2323;
   --radius: 12px;
   --safe-bottom: env(safe-area-inset-bottom, 0px);
   --safe-top: env(safe-area-inset-top, 0px);
@@ -19,17 +22,20 @@
 @media (prefers-color-scheme: dark) {
   :root {
     color-scheme: dark;
-    --bg: #141312;
-    --surface: #1c1a18;
-    --ink: #ede9e3;
-    --muted: #a8a099;
-    --line: #2b2825;
-    --hover: #242019;
-    --accent: #c98fa8;
-    --accent-soft: #33222b;
-    --fertile-soft: #2c2721;
-    --on-accent: #191215;
-    --danger: #e8a7a0;
+    --bg: #121110;
+    --surface: #1c1917;
+    --ink: #f5f1eb;
+    --muted: #c3bbb1;
+    --line: #3b3530;
+    --line-strong: #6b6259;
+    --hover: #24201c;
+    --accent: #e3a9c2;
+    --accent-soft: #432b36;
+    --period-fill: #8e4e6b;
+    --on-period: #ffffff;
+    --fertile-soft: #3a332a;
+    --on-accent: #17110f;
+    --danger: #f0a8a0;
   }
 }
 
@@ -101,7 +107,7 @@ textarea {
   font-size: 16px;
   color: var(--ink);
   background: var(--surface);
-  border: 1px solid var(--line);
+  border: 1px solid var(--line-strong);
   border-radius: var(--radius);
   padding: 10px 12px;
   min-height: 44px;
@@ -185,7 +191,7 @@ textarea {
   gap: 6px;
   min-height: 44px;
   padding: 0 16px;
-  border: 1px solid var(--line);
+  border: 1px solid var(--line-strong);
   border-radius: var(--radius);
   background: transparent;
   color: var(--ink);
@@ -200,7 +206,8 @@ textarea {
 
 .link-button {
   min-height: 44px;
-  padding: 0 4px;
+  min-width: 44px;
+  padding: 0 8px;
   color: var(--accent);
   font-size: 14px;
   text-decoration: underline;
@@ -213,7 +220,7 @@ textarea {
 
 .eyebrow {
   margin: 0;
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 600;
   letter-spacing: 0.09em;
   text-transform: uppercase;
@@ -283,25 +290,130 @@ textarea {
 /* Month calendar */
 
 .calendar {
-  margin-top: 22px;
+  margin-top: 14px;
 }
 
 .cal-head {
   display: flex;
   align-items: center;
-  gap: 2px;
-  margin-bottom: 2px;
+  gap: 4px;
+  margin-bottom: 4px;
+}
+
+.cal-head .icon-btn {
+  flex: 0 0 44px;
+  border: 1px solid var(--line-strong);
+  border-radius: 10px;
+  background: var(--surface);
 }
 
 .cal-head select {
-  appearance: auto;
-  border: 0;
-  background: transparent;
+  flex: 0 0 auto;
+  min-width: 0;
+  border: 1px solid var(--line-strong);
+  border-radius: 10px;
+  background: var(--surface);
   min-height: 44px;
-  padding: 0 4px;
-  font-size: 17px;
+  padding: 0 8px;
+  font-size: 16px;
   font-weight: 600;
   color: var(--ink);
+}
+
+.cal-head select:first-of-type {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.cal-head select:last-of-type {
+  flex-basis: 74px;
+}
+
+@media (max-width: 360px) {
+  .cal-head {
+    gap: 2px;
+  }
+
+  .cal-head select {
+    padding: 0 4px;
+    font-size: 14px;
+  }
+
+  .cal-head select:last-of-type {
+    flex-basis: 62px;
+  }
+}
+
+.cal-summary {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 4px 14px;
+  margin: 2px 0 6px;
+  font-size: 13px;
+  line-height: 1.35;
+}
+
+.cal-summary .item {
+  display: flex;
+  align-items: flex-start;
+  gap: 7px;
+  min-width: 0;
+}
+
+.cal-summary .snippet {
+  min-width: 0;
+}
+
+.cal-summary .summary-label {
+  color: var(--ink);
+  font-weight: 600;
+}
+
+.cal-summary .summary-when {
+  color: var(--muted);
+}
+
+.cal-summary .summary-note {
+  margin: 0;
+  color: var(--muted);
+  font-size: 12.5px;
+}
+
+.cal-summary .swatch {
+  flex: 0 0 12px;
+  width: 12px;
+  height: 12px;
+  margin-top: 2px;
+  border-radius: 50%;
+}
+
+.cal-summary .swatch.period {
+  background: var(--period-fill);
+}
+
+.cal-summary .swatch.predicted {
+  background: var(--accent-soft);
+  border: 2px dashed var(--accent);
+  box-sizing: border-box;
+}
+
+.cal-summary .swatch.fertile {
+  background: var(--fertile-soft);
+  border-radius: 3px;
+  border-bottom: 2px dotted var(--ink);
+}
+
+.cal-summary .swatch.ovulation {
+  background: transparent;
+  border: 2px solid var(--accent);
+}
+
+.cal-summary .swatch.logged {
+  width: 4px;
+  height: 4px;
+  flex-basis: 4px;
+  margin: 5px 4px 0;
+  background: var(--ink);
 }
 
 .cal-grid {
@@ -317,7 +429,7 @@ textarea {
 
 .cal-weekday {
   height: 30px;
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 500;
   letter-spacing: 0.04em;
   text-transform: uppercase;
@@ -342,7 +454,7 @@ textarea {
   gap: 3px;
   width: min(100%, 46px);
   aspect-ratio: 1;
-  border: 1.5px solid transparent;
+  border: 2px solid transparent;
   border-radius: 999px;
   color: var(--ink);
   font-size: 16px;
@@ -360,117 +472,65 @@ textarea {
 }
 
 .cal-day .dot {
-  width: 3.5px;
-  height: 3.5px;
+  width: 4px;
+  height: 4px;
   border-radius: 50%;
-  background: var(--accent);
+  background: currentColor;
 }
 
 .cal-day[data-outside-month] {
-  opacity: 0.38;
+  opacity: 0.65;
+}
+
+.cal-day[data-today] {
+  box-shadow: inset 0 0 0 2px var(--ink);
 }
 
 .cal-day[data-today] .num {
   font-weight: 700;
 }
 
-.cal-cell.is-fertile .cal-day .num {
-  text-decoration: underline dotted;
-  text-decoration-thickness: 1.5px;
-  text-underline-offset: 3px;
-}
-
 .cal-day[data-selected] {
-  box-shadow: inset 0 0 0 2px var(--ink);
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
 }
 
 .cal-cell.is-period .cal-day {
-  background: var(--accent-soft);
+  background: var(--period-fill);
+  color: var(--on-period);
+}
+
+.cal-cell.is-period .cal-day[data-today] {
+  box-shadow: inset 0 0 0 2px var(--on-period);
 }
 
 .cal-cell.is-predicted .cal-day {
-  border-color: var(--accent);
-  border-style: dashed;
+  background: var(--accent-soft);
+  border: 2px dashed var(--accent);
 }
 
 .cal-cell.is-fertile .cal-day {
   background: var(--fertile-soft);
 }
 
-.cal-cell.is-period.is-fertile .cal-day {
-  background: var(--accent-soft);
+.cal-cell.is-fertile .cal-day .num {
+  text-decoration: underline dotted;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 3px;
+}
+
+.cal-cell.is-period .cal-day .num {
+  text-decoration: none;
 }
 
 .cal-cell.is-ovulation .num {
   border-radius: 999px;
-  outline: 1.5px solid var(--accent);
+  outline: 2px solid var(--accent);
   outline-offset: 3px;
 }
 
-.cal-nav {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  margin-top: 10px;
-}
-
-.cal-nav .today {
-  min-height: 44px;
-  padding: 0 16px;
-  border-radius: var(--radius);
-  font-size: 15px;
-  color: var(--muted);
-}
-
-@media (hover: hover) {
-  .cal-nav .today:hover {
-    background: var(--hover);
-  }
-}
-
-.cal-legend {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px 14px;
-  margin: 10px 0 0;
-  font-size: 12px;
-  color: var(--muted);
-}
-
-.cal-legend span {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.cal-legend i {
-  display: inline-block;
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-}
-
-.cal-legend .lg-recorded {
-  background: var(--accent-soft);
-}
-
-.cal-legend .lg-predicted {
-  border: 1px dashed var(--accent);
-}
-
-.cal-legend .lg-fertile {
-  width: 12px;
-  height: 12px;
-  border-radius: 3px;
-  background: var(--fertile-soft);
-  border-bottom: 1.5px dotted var(--muted);
-}
-
-.cal-legend .lg-event {
-  width: 4px;
-  height: 4px;
-  background: var(--accent);
+.cal-cell.is-period.is-ovulation .num {
+  outline-color: var(--on-period);
 }
 
 /* Bottom sheet and dialogs */
@@ -556,7 +616,7 @@ textarea {
 }
 
 .toast button {
-  min-height: 40px;
+  min-height: 44px;
   padding: 0 10px;
   color: inherit;
   font-weight: 600;
@@ -575,7 +635,7 @@ textarea {
 }
 
 .undo-row button {
-  min-height: 40px;
+  min-height: 44px;
   padding: 0 8px;
   font-weight: 600;
 }

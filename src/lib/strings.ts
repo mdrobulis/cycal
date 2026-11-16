@@ -1,13 +1,253 @@
 export const APP_NAME = 'Cycal';
 
-export const PRIVACY_NOTE =
-  'Everything you log stays in this browser on this device. There is no account, no sync, and the app cannot send data anywhere. Export a backup before clearing your browser data.';
+/** Lithuanian plural: 1 → one, 2–9 → few, 10–20 and 0 → many. */
+export function ltCount(count: number, one: string, few: string, many: string): string {
+  const mod10 = count % 10;
+  const mod100 = count % 100;
+  const form =
+    mod10 === 1 && mod100 !== 11
+      ? one
+      : mod10 >= 2 && mod10 <= 9 && (mod100 < 10 || mod100 >= 20)
+        ? few
+        : many;
+  return `${count} ${form}`;
+}
 
-export const STORAGE_BLOCKED =
-  "Storage is unavailable, so changes won't survive a reload. Keep this tab open to use the app.";
+export const COPY = {
+  common: {
+    settings: 'Nustatymai',
+    back: 'Atgal',
+    close: 'Uždaryti',
+    done: 'Gerai',
+    cancel: 'Atšaukti',
+    undo: 'Atšaukti',
+    delete: 'Ištrinti',
+    add: 'Pridėti',
+    today: 'Šiandien',
+    loading: 'Kraunama…',
+  },
+  app: {
+    markPeriod: 'Pažymėti mėnesines',
+    settingsAria: 'Nustatymai',
+    privacy: 'Privatumas',
+    privacyNote:
+      'Viskas lieka šiame telefone. Nėra paskyros, sinchronizavimo, tinklo. Duomenys niekur nesiunčiami.',
+    storageBlocked: 'Saugykla nepasiekiama. Pakeitimai nebus išsaugoti perkrovus.',
+    version: 'Cycal 0.1.0 · tik vietoje · be tinklo',
+  },
+  dashboard: {
+    aria: 'Ciklo apžvalga',
+    eyebrow: 'Ciklo diena',
+    emptyTitle: 'Ciklų nėra.',
+    emptyBody: 'Pažymėk mėnesines arba pasirink dieną kalendoriuje.',
+    labels: {
+      next: 'Kitos mėnesinės',
+      fertile: 'Vaisingos dienos',
+      ovulation: 'Ovuliacija',
+      pms: 'PMS',
+      last: 'Paskutinės mėnesinės',
+      predictions: 'Prognozės',
+    },
+    pausedValue: 'Pristabdytos',
+    pausedSub: 'Keisk režimą nustatymuose',
+    subs: {
+      uncertain: 'Galimas intervalas',
+      defaultCycle: 'pagal numatytą ciklą',
+      fiveBefore: '5 d. prieš ovuliaciją',
+      notEstimated: 'Neskaičiuojama',
+      irregular: 'Neskaičiuojama esant nereguliariam ciklui',
+      needCycle: 'Reikia dar vieno ciklo',
+      addStart: 'Pažymėk mėnesines',
+      changeMode: 'Keisk režimą nustatymuose',
+      ongoing: 'tęsiasi',
+      notEnded: 'Dar nebaigtos',
+    },
+    status: {
+      paused: 'Prognozės pristabdytos',
+      fertile: 'Vaisingos dienos',
+      lateOne: 'Mėnesinės turėjo prasidėti vakar',
+      irregular: 'Nereguliarus ciklas',
+      empty: 'Ciklų nėra',
+      needAnother: 'Reikia dar vieno ciklo',
+      periodStarted: (relative: string) => `Mėnesinės prasidėjo ${relative}`,
+      late: (days: number) => `Mėnesinės vėluoja ${days} d.`,
+      next: (relative: string) => `Kitos mėnesinės ${relative}`,
+    },
+    nextLate: (days: number) => (days === 1 ? 'vėluoja 1 d.' : `vėluoja ${days} d.`),
+    notes: {
+      irregular: 'Nereguliarus ciklas — vaisingos ir PMS dienos nerodomos.',
+      estimate: 'Tai prognozė, ne kontracepcija.',
+    },
+  },
+  calendar: {
+    sectionAria: 'Mėnesio kalendorius',
+    label: 'Ciklo kalendorius',
+    month: 'Mėnuo',
+    year: 'Metai',
+    prev: 'Ankstesnis mėnuo',
+    next: 'Kitas mėnuo',
+    today: 'Šiandien',
+    summaryAria: 'Mėnesio suvestinė',
+    summary: {
+      period: 'Mėnesinės',
+      predicted: 'Prognozė',
+      fertile: 'Vaisingos',
+      ovulation: 'Ovuliacija',
+      logged: 'Įrašai',
+      noMarks: 'Šį mėnesį žymėjimų nėra.',
+      paused: 'Prognozės pristabdytos.',
+      irregular: 'Nereguliarus ciklas: prognozė apytikrė.',
+      loggedCount: (count: number) => `Įrašai: ${count}`,
+    },
+  },
+  period: {
+    day: (days: number) =>
+      days > 10 ? `Mėnesinės atviros: ${days} d.` : `Mėnesinės: ${days} d.`,
+    still: 'Dar kraujuoji',
+    ended: 'Baigėsi',
+    started: 'Mėnesinės prasidėjo',
+    bleeding: 'Kraujavimas',
+    finished: 'Mėnesinės baigėsi',
+  },
+  sheet: {
+    futureNote: 'Ateities datoms mėnesinių žymėti negalima. Pastabas ir simptomus galima.',
+    empty: 'Šią dieną įrašų nėra.',
+    deleteAria: (label: string) => `Ištrinti ${label}`,
+    severityAria: (label: string) => `Stiprumas: ${label}`,
+    addTitle: 'Pridėti',
+    symptom: 'Simptomas',
+    mood: 'Nuotaika',
+    flow: 'Kraujavimas',
+    intimacy: 'Intymumas',
+    note: 'Pastaba',
+    custom: 'Kita',
+    symptomOther: 'Kita…',
+    symptomLabel: 'Simptomas',
+    symptomPlaceholder: 'Įrašyk pavadinimą',
+    addSymptom: 'Pridėti simptomą',
+    noteLabel: 'Pastaba',
+    notePlaceholder: 'Ką nori prisiminti',
+    addNote: 'Pridėti pastabą',
+    customLabel: 'Kitas įrašas',
+    customPlaceholder: 'Pvz. pradėjau naują pakelį',
+    addCustom: 'Pridėti įrašą',
+    saveError: 'Nepavyko išsaugoti.',
+    undoMessage: 'Įrašas ištrintas',
+  },
+  settings: {
+    title: 'Nustatymai',
+    predictions: 'Prognozės',
+    modeAria: 'Prognozės režimas',
+    modes: {
+      auto: {
+        label: 'Automatinis',
+        hint: 'Pagal paskutinių ciklų medianą. Esant skirtumams rodo intervalą.',
+      },
+      irregular: {
+        label: 'Nereguliarus',
+        hint: 'Rodo intervalus. Vaisingų dienų ir PMS neskaičiuoja.',
+      },
+      paused: {
+        label: 'Pristabdytas',
+        hint: 'Prognozių nerodo. Įrašyti galima.',
+      },
+    },
+    cycleLength: 'Ciklo ilgis',
+    periodLength: 'Mėnesinių trukmė',
+    days: 'd.',
+    defaultsHint: 'Naudojama, kol įrašyti du ciklai.',
+    history: 'Ciklų istorija',
+    backup: 'Atsarginė kopija',
+    noBackup: 'Kopijos nėra.',
+    lastBackup: (days: number) => `Paskutinė kopija: prieš ${days} d.`,
+    export: 'Išsaugoti kopiją',
+    backupHint: 'iOS gali ištrinti svetainės duomenis. Turėk kopiją.',
+    data: 'Duomenys',
+    import: 'Įkelti kopiją',
+    ics: 'Įkelti prognozes į kalendorių (.ics)',
+    erase: 'Ištrinti visus duomenis',
+    importTitle: (count: string, date: string) => `Kopijoje: ${count}. Sukurta: ${date}.`,
+    importQuestion: 'Sujungti su esamais ar pakeisti viską?',
+    merge: 'Sujungti',
+    replace: 'Pakeisti',
+    cancel: 'Atšaukti',
+    statuses: {
+      backupSaved: 'Kopija išsaugota.',
+      calendarSaved: 'Kalendoriaus failas išsaugotas.',
+      merged: (count: string) => `Sujungta: ${count}.`,
+      restored: 'Kopija įkelta.',
+      erased: 'Visi duomenys ištrinti.',
+    },
+    eraseTitle: 'Ištrinti viską?',
+    eraseMessage:
+      'Bus ištrinti visi ciklai ir įrašai. Atšaukti negalima. Pirmiausia išsaugok kopiją.',
+    eraseConfirm: 'Ištrinti viską',
+    replaceTitle: 'Pakeisti viską?',
+    replaceMessage:
+      'Dabartiniai duomenys bus ištrinti ir pakeisti kopija. Atšaukti negalima.',
+    replaceConfirm: 'Pakeisti viską',
+    privacy: 'Privatumas',
+  },
+  history: {
+    title: 'Ciklų istorija',
+    empty: 'Ciklų nėra. Įrašyk mėnesinių pradžią.',
+    average: (days: number) => `Vidutiniškai ${days} d.`,
+    range: (low: number, high: number) => `${low}–${high} d.`,
+    count: (count: number) => ltCount(count, 'ciklas', 'ciklai', 'ciklų'),
+    needAverage: 'Įrašyk dar vieną mėnesinių pradžią, kad būtų vidurkis.',
+    columns: { cycle: 'Ciklas', period: 'Mėnesinės' },
+    current: 'Dabartinis ciklas',
+    cycleLength: (days: number) => `${days} d. ciklas`,
+    from: (date: string) => `Nuo ${date}`,
+    ongoing: 'tęsiasi',
+    noEnd: 'nebaigtos',
+    periodLength: (days: number) => `${days} d.`,
+    note:
+      'Ciklo ilgis skaičiuojamas nuo pradžios iki pradžios. Dabartinis ciklas ilgio neturi, kol neprasidės kitos mėnesinės.',
+  },
+  nudge: {
+    noBackup: 'Kopijos nėra.',
+    old: (days: number) => `Kopija sena: ${days} d.`,
+    export: 'Išsaugoti',
+    dismiss: 'Slėpti',
+  },
+  ics: {
+    calendarName: 'Cycal prognozės',
+    prodId: '-//Cycal//Ciklo prognozės//LT',
+    period: 'Mėnesinės (prognozė)',
+    fertile: 'Vaisingos dienos (prognozė)',
+    pms: 'PMS (prognozė)',
+    periodDescription: 'Prognozuojamos mėnesinės. Tai ne kontracepcija.',
+    fertileDescription: (ovulation: string) =>
+      `Ovuliacija apie ${ovulation}. Tai ne kontracepcija.`,
+    pmsDescription: 'Prognozuojamas PMS laikotarpis.',
+  },
+  errors: {
+    save: 'Nepavyko išsaugoti.',
+    generic: 'Nepavyko.',
+    futureStart: 'Mėnesinės negali prasidėti ateityje.',
+    futureBleeding: 'Kraujavimo diena negali būti ateityje.',
+    noOpenPeriodDay: 'Šią dieną mėnesinės nevyksta.',
+    noOpenPeriod: 'Nėra atidarytų mėnesinių.',
+    endBeforeStart: 'Pabaiga negali būti prieš pradžią.',
+    futureEnd: 'Mėnesinės negali baigtis ateityje.',
+    moodRange: 'Nuotaika turi būti nuo 1 iki 5.',
+    flowOnlyPeriod: 'Kraujavimą galima žymėti tik mėnesinių dienomis.',
+    chooseSymptom: 'Pirmiausia pasirink simptomą.',
+    writeText: 'Pirmiausia įrašyk tekstą.',
+    nameEvent: 'Pirmiausia įrašyk pavadinimą.',
+    notJson: 'Failas netinkamas JSON.',
+    notBackup: 'Tai ne Cycal kopija.',
+    schema: (version: string) => `Nepalaikoma kopijos versija: ${version}.`,
+    noEvents: 'Kopijoje nėra įrašų.',
+    unreadable: 'Kopijoje yra įrašų, kurių Cycal neperskaito.',
+    icsUnavailable: 'Prognozės šiuo režimu negalimos.',
+    icsNoData: 'Per mažai duomenų prognozėms eksportuoti.',
+  },
+} as const;
 
-export const NO_CYCLES_TITLE = 'No cycles yet';
-export const NO_CYCLES_BODY =
-  'Mark your period start below, or tap any day on the calendar to add history.';
-
-export const ESTIMATE_NOTE = 'Estimates only — not contraception.';
+export const PRIVACY_NOTE = COPY.app.privacyNote;
+export const STORAGE_BLOCKED = COPY.app.storageBlocked;
+export const NO_CYCLES_TITLE = COPY.dashboard.emptyTitle;
+export const NO_CYCLES_BODY = COPY.dashboard.emptyBody;
+export const ESTIMATE_NOTE = COPY.dashboard.notes.estimate;

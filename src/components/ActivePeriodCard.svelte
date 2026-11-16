@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { COPY } from '../lib/strings';
   import type { ActivePeriod } from '../lib/types';
 
   let {
@@ -13,24 +14,26 @@
 </script>
 
 <div class="active-period">
-  <p class="label">
-    {#if period.days > 10}
-      Period still open — day {period.days}
-    {:else}
-      Day {period.days} of your period
-    {/if}
-  </p>
+  <p class="label">{COPY.period.day(period.days)}</p>
   <div class="actions">
-    <button class="primary" onclick={onStill}>Still bleeding</button>
-    <button class="secondary" onclick={onEnded}>Ended</button>
+    <button class="primary" onclick={onStill}>{COPY.period.still}</button>
+    <button class="secondary" onclick={onEnded}>{COPY.period.ended}</button>
   </div>
 </div>
 
 <style>
+  .active-period {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+  }
+
   .label {
-    margin: 0 0 8px;
+    margin: 0;
     color: var(--muted);
     font-size: 13px;
+    white-space: nowrap;
   }
 
   .actions {
@@ -39,11 +42,24 @@
   }
 
   .actions .primary {
-    flex: 1;
     width: auto;
+    min-height: 44px;
+    padding: 0 14px;
+    font-size: 15px;
   }
 
   .actions .secondary {
-    flex: 0 0 auto;
+    min-height: 44px;
+    padding: 0 12px;
+  }
+
+  @media (max-width: 360px) {
+    .active-period {
+      flex-wrap: wrap;
+    }
+
+    .label {
+      width: 100%;
+    }
   }
 </style>

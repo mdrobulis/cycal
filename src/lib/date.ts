@@ -3,6 +3,46 @@ import type { DayKey, DayRange } from './types';
 const DAY_MS = 86_400_000;
 const DAY_RE = /^\d{4}-\d{2}-\d{2}$/;
 
+const MONTHS_GENITIVE = [
+  'sausio',
+  'vasario',
+  'kovo',
+  'balandžio',
+  'gegužės',
+  'birželio',
+  'liepos',
+  'rugpjūčio',
+  'rugsėjo',
+  'spalio',
+  'lapkričio',
+  'gruodžio',
+] as const;
+
+const MONTHS_SHORT = [
+  'saus.',
+  'vas.',
+  'kov.',
+  'bal.',
+  'geg.',
+  'birž.',
+  'liep.',
+  'rugp.',
+  'rugs.',
+  'spal.',
+  'lapkr.',
+  'gruod.',
+] as const;
+
+const WEEKDAYS = [
+  'sekmadienis',
+  'pirmadienis',
+  'antradienis',
+  'trečiadienis',
+  'ketvirtadienis',
+  'penktadienis',
+  'šeštadienis',
+] as const;
+
 export function isDayKey(value: unknown): value is DayKey {
   if (typeof value !== 'string' || !DAY_RE.test(value)) return false;
   const [y, m, d] = value.split('-').map(Number);
@@ -50,42 +90,62 @@ export function rangeSet(range?: DayRange): Set<DayKey> {
   return new Set(range ? rangeDays(range.from, range.to) : []);
 }
 
-function formatter(options: Intl.DateTimeFormatOptions): Intl.DateTimeFormat {
-  return new Intl.DateTimeFormat('en-GB', { timeZone: 'UTC', ...options });
+function parts(key: DayKey): [number, number, number] {
+  const [y, m, d] = key.split('-').map(Number);
+  return [y!, m!, d!];
 }
 
+/** Short Lithuanian date: “lapkr. 16 d.” */
 export function formatDay(key: DayKey): string {
-  return formatter({ day: 'numeric', month: 'short' }).format(new Date(dayKeyToUTC(key)));
+  const [, m, d] = parts(key);
+  return `${MONTHS_SHORT[m - 1]} ${d} d.`;
 }
 
+/** Date with year: “2026 m. lapkr. 16 d.” */
 export function formatDayYear(key: DayKey): string {
-  return formatter({ day: 'numeric', month: 'short', year: 'numeric' }).format(
-    new Date(dayKeyToUTC(key)),
-  );
+  const [y, m, d] = parts(key);
+  return `${y} m. ${MONTHS_SHORT[m - 1]} ${d} d.`;
 }
 
+/** Full date without weekday: “2026 m. lapkričio 16 d.” */
 export function formatLongDay(key: DayKey): string {
-  return formatter({ weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' }).format(
-    new Date(dayKeyToUTC(key)),
-  );
+  const [y, m, d] = parts(key);
+  return `${y} m. ${MONTHS_GENITIVE[m - 1]} ${d} d.`;
+}
+
+/** Full Lithuanian weekday: “pirmadienis”. */
+export function weekdayName(key: DayKey): string {
+  return WEEKDAYS[new Date(dayKeyToUTC(key)).getUTCDay()]!;
 }
 
 export function formatRange(from: DayKey, to: DayKey): string {
   if (from === to) return formatDay(from);
-  const [fy, fm] = from.split('-');
-  const [ty, tm] = to.split('-');
-  if (fy === ty && fm === tm) {
-    return `${Number(from.slice(8, 10))}–${formatDay(to)}`;
-  }
+  const [fy, fm, fd] = parts(from);
+  const [ty, tm, td] = parts(to);
+  if (fy === ty && fm === tm) return `${MONTHS_SHORT[fm - 1]} ${fd}–${td} d.`;
   if (fy === ty) return `${formatDay(from)} – ${formatDay(to)}`;
   return `${formatDayYear(from)} – ${formatDayYear(to)}`;
 }
 
 export function relativeDays(target: DayKey, today: DayKey): string {
   const d = diffDays(today, target);
-  if (d === 0) return 'today';
-  if (d === 1) return 'tomorrow';
-  if (d === -1) return 'yesterday';
-  if (d > 1) return `in ${d} days`;
-  return `${Math.abs(d)} days ago`;
+  if (d === 0) return 'šiandien';
+  if (d === 1) return 'rytoj';
+  if (d === -1) return 'vakar';
+  if (d > 1) return `po ${d} d.`;
+  return `prieš ${Math.abs(d)} d.`;
+}
+
+/** Group a set of days into contiguous, inclusive ranges, optionally for one month. */
+export function dayRanges(days: Iterable<DayKey>, prefix?: string): DayRange[] {
+  const sorted = [...new Set(days)]
+    .filter((day) => !prefix || day.startsWith(prefix))
+    .sort((a, b) => a.localeCompare(b));
+  const ranges: DayRange[] = [];
+  for (const day of sorted) {
+    const last = ranges[ranges.length - 1];
+    if (last && diffDays(last.to, day) === 1) last.to = day;
+    else ranges.push({ from: day, to: day });
+  }
+  return ranges;
 }

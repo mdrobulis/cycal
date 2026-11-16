@@ -1,4 +1,5 @@
 import { diffDays, isDayKey } from './date';
+import { COPY } from './strings';
 import { normalizeSettings, type DayEvent, type Settings } from './types';
 
 const KINDS = new Set([
@@ -62,19 +63,19 @@ export function parseBackup(text: string): BackupFile {
   try {
     data = JSON.parse(text);
   } catch {
-    throw new Error('That file is not valid JSON.');
+    throw new Error(COPY.errors.notJson);
   }
   if (!data || typeof data !== 'object') {
-    throw new Error('That file is not a Cycal backup.');
+    throw new Error(COPY.errors.notBackup);
   }
   const record = data as Record<string, unknown>;
-  if (record.app !== 'cycal') throw new Error('That file is not a Cycal backup.');
+  if (record.app !== 'cycal') throw new Error(COPY.errors.notBackup);
   if (record.schema !== 1) {
-    throw new Error(`Unsupported backup version: ${String(record.schema)}.`);
+    throw new Error(COPY.errors.schema(String(record.schema)));
   }
-  if (!Array.isArray(record.events)) throw new Error('The backup has no event list.');
+  if (!Array.isArray(record.events)) throw new Error(COPY.errors.noEvents);
   if (!record.events.every(isValidEvent)) {
-    throw new Error('The backup contains events Cycal cannot read.');
+    throw new Error(COPY.errors.unreadable);
   }
   return {
     app: 'cycal',

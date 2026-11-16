@@ -1,6 +1,7 @@
 <script lang="ts">
   import { app } from '../lib/store.svelte';
   import { formatDay, formatRange } from '../lib/date';
+  import { COPY } from '../lib/strings';
   import Icon from './Icon.svelte';
 
   let { onBack }: { onBack: () => void } = $props();
@@ -21,32 +22,32 @@
 </script>
 
 <header class="topbar page-head">
-  <button class="icon-btn" aria-label="Back" onclick={onBack}>
+  <button class="icon-btn" aria-label={COPY.common.back} onclick={onBack}>
     <Icon name="back" />
   </button>
-  <h1 class="page-title">Cycle history</h1>
+  <h1 class="page-title">{COPY.history.title}</h1>
 </header>
 
 {#if history.length === 0}
-  <p class="empty">No cycles yet. Add a period start and it will appear here.</p>
+  <p class="empty">{COPY.history.empty}</p>
 {:else}
   <p class="summary">
     {#if average !== null}
-      <strong>{average} days</strong> average
-      {#if low !== high}
+      <strong>{COPY.history.average(average)}</strong>
+      {#if low !== null && high !== null && low !== high}
         <span class="dot">·</span>
-        {low}–{high} day range
+        {COPY.history.range(low, high)}
       {/if}
       <span class="dot">·</span>
-      {lengths.length} completed {lengths.length === 1 ? 'cycle' : 'cycles'}
+      {COPY.history.count(lengths.length)}
     {:else}
-      Add another period start to see an average.
+      {COPY.history.needAverage}
     {/if}
   </p>
 
   <div class="list-head">
-    <span>Cycle</span>
-    <span>Period</span>
+    <span>{COPY.history.columns.cycle}</span>
+    <span>{COPY.history.columns.period}</span>
   </div>
 
   <div class="list">
@@ -57,16 +58,16 @@
             {#if cycle.end}
               {formatRange(cycle.start, cycle.end)}
             {:else if cycle.current}
-              From {formatDay(cycle.start)} · ongoing
+              {COPY.history.from(formatDay(cycle.start))} · {COPY.history.ongoing}
             {:else}
-              From {formatDay(cycle.start)} · no end
+              {COPY.history.from(formatDay(cycle.start))} · {COPY.history.noEnd}
             {/if}
           </p>
           <p class="meta">
             {#if cycle.current}
-              Current cycle
+              {COPY.history.current}
             {:else if cycle.cycleLength}
-              {cycle.cycleLength} day cycle
+              {COPY.history.cycleLength(cycle.cycleLength)}
             {:else}
               —
             {/if}
@@ -74,17 +75,14 @@
         </div>
         <p class="period">
           {cycle.periodLength
-            ? `${cycle.periodLength} ${cycle.periodLength === 1 ? 'day' : 'days'}`
+            ? COPY.history.periodLength(cycle.periodLength)
             : '—'}
         </p>
       </div>
     {/each}
   </div>
 
-  <p class="note">
-    Cycle length is measured start to start. The current cycle has no length until the next
-    period starts.
-  </p>
+  <p class="note">{COPY.history.note}</p>
 {/if}
 
 <style>
@@ -114,7 +112,7 @@
     padding-bottom: 6px;
     border-bottom: 1px solid var(--line);
     color: var(--muted);
-    font-size: 11px;
+    font-size: 12px;
     font-weight: 600;
     letter-spacing: 0.08em;
     text-transform: uppercase;
@@ -138,7 +136,7 @@
   .meta {
     margin: 2px 0 0;
     color: var(--muted);
-    font-size: 12px;
+    font-size: 13px;
   }
 
   .period {
@@ -158,7 +156,7 @@
   .note {
     margin: 18px 0 0;
     color: var(--muted);
-    font-size: 12px;
+    font-size: 13px;
     line-height: 1.5;
   }
 </style>

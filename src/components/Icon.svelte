@@ -48,5 +48,6 @@
   {:else if name === 'calendar'}
     <rect x="4" y="5" width="16" height="15" rx="2" />
     <path d="M8 3v4M16 3v4M4 10h16" />
+    <circle cx="12" cy="15" r="1.6" fill="currentColor" stroke="none" />
   {/if}
 </svg>

@@ -1,6 +1,9 @@
 import { addDays } from './date';
 import { canProject, computeStats, projectCycles } from './cycle';
+import { COPY } from './strings';
 import type { DayEvent, DayKey, Settings } from './types';
+
+const encoder = new TextEncoder();
 
 function compact(day: DayKey): string {
   return day.replaceAll('-', '');
@@ -18,15 +21,32 @@ function escapeText(value: string): string {
     .replaceAll('\n', '\\n');
 }
 
-/** Fold a content line to 75 octets, counting the continuation space. */
-function fold(line: string): string {
-  if (line.length <= 75) return line;
-  const parts: string[] = [line.slice(0, 75)];
-  let rest = line.slice(75);
-  while (rest.length > 0) {
-    parts.push(` ${rest.slice(0, 74)}`);
-    rest = rest.slice(74);
+/**
+ * Fold one content line to 75 octets, counting the continuation space.
+ * Lithuanian is multibyte, so measuring characters would overflow the limit.
+ */
+export function foldLine(line: string): string {
+  if (encoder.encode(line).length <= 75) return line;
+
+  const parts: string[] = [];
+  let current = '';
+  let bytes = 0;
+  let first = true;
+
+  for (const char of line) {
+    const size = encoder.encode(char).length;
+    const limit = first ? 75 : 74;
+    if (bytes + size > limit) {
+      parts.push(first ? current : ` ${current}`);
+      current = char;
+      bytes = size;
+      first = false;
+    } else {
+      current += char;
+      bytes += size;
+    }
   }
+  if (current) parts.push(first ? current : ` ${current}`);
   return parts.join('\r\n');
 }
 
@@ -63,20 +83,20 @@ export function buildPredictionICS(
 ): string {
   const stats = computeStats(events, settings, today);
   if (!canProject(stats)) {
-    throw new Error('Predictions are not available in this mode.');
+    throw new Error(COPY.errors.icsUnavailable);
   }
   const cycles = projectCycles(stats, settings, 3);
   if (cycles.length === 0) {
-    throw new Error('There is not enough data to export predictions yet.');
+    throw new Error(COPY.errors.icsNoData);
   }
 
   const lines: string[] = [
     'BEGIN:VCALENDAR',
     'VERSION:2.0',
-    'PRODID:-//Cycal//Cycle predictions//EN',
+    `PRODID:${COPY.ics.prodId}`,
     'CALSCALE:GREGORIAN',
     'METHOD:PUBLISH',
-    'X-WR-CALNAME:Cycal predictions',
+    `X-WR-CALNAME:${COPY.ics.calendarName}`,
   ];
 
   for (const cycle of cycles) {
@@ -86,8 +106,8 @@ export function buildPredictionICS(
         `cycal-period-${cycle.start}`,
         cycle.start,
         periodEnd,
-        'Period (estimate)',
-        'Predicted period. Cycal estimate - not contraception.',
+        COPY.ics.period,
+        COPY.ics.periodDescription,
         now,
       ),
     );
@@ -97,16 +117,16 @@ export function buildPredictionICS(
           `cycal-fertile-${cycle.start}`,
           cycle.fertile.from,
           addDays(cycle.fertile.to, 1),
-          'Fertile window (estimate)',
-          `Estimated ovulation around ${cycle.ovulation}. Cycal estimate - not contraception.`,
+          COPY.ics.fertile,
+          COPY.ics.fertileDescription(cycle.ovulation),
           now,
         ),
         ...eventLines(
           `cycal-pms-${cycle.start}`,
           cycle.pms.from,
           addDays(cycle.pms.to, 1),
-          'PMS window (estimate)',
-          'Predicted PMS window. Cycal estimate.',
+          COPY.ics.pms,
+          COPY.ics.pmsDescription,
           now,
         ),
       );
@@ -114,5 +134,5 @@ export function buildPredictionICS(
   }
 
   lines.push('END:VCALENDAR');
-  return `${lines.map(fold).join('\r\n')}\r\n`;
+  return `${lines.map(foldLine).join('\r\n')}\r\n`;
 }

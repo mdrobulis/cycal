@@ -1,12 +1,17 @@
 import { describe, expect, it } from 'vitest';
 import {
   addDays,
+  dayRanges,
   diffDays,
   formatDay,
+  formatDayYear,
+  formatLongDay,
   formatRange,
   isDayKey,
   rangeDays,
+  relativeDays,
   todayKey,
+  weekdayName,
 } from './date';
 
 describe('isDayKey', () => {
@@ -86,18 +91,54 @@ describe('rangeDays', () => {
 
 describe('formatting', () => {
   it('formats a day without a timezone shift', () => {
-    expect(formatDay('2026-11-22')).toBe('22 Nov');
-    expect(formatDay('2026-01-01')).toBe('1 Jan');
+    expect(formatDay('2026-11-22')).toBe('lapkr. 22 d.');
+    expect(formatDay('2026-01-01')).toBe('saus. 1 d.');
+    expect(formatDayYear('2026-11-22')).toBe('2026 m. lapkr. 22 d.');
   });
 
   it('formats ranges within and across months', () => {
-    expect(formatRange('2026-11-18', '2026-11-24')).toBe('18–24 Nov');
-    expect(formatRange('2026-11-29', '2026-12-03')).toBe('29 Nov – 3 Dec');
-    expect(formatRange('2026-11-18', '2026-11-18')).toBe('18 Nov');
+    expect(formatRange('2026-11-18', '2026-11-24')).toBe('lapkr. 18–24 d.');
+    expect(formatRange('2026-11-29', '2026-12-03')).toBe('lapkr. 29 d. – gruod. 3 d.');
+    expect(formatRange('2026-11-18', '2026-11-18')).toBe('lapkr. 18 d.');
+  });
+
+  it('formats a full date and weekday', () => {
+    expect(formatLongDay('2026-11-16')).toBe('2026 m. lapkričio 16 d.');
+    expect(weekdayName('2026-11-16')).toBe('pirmadienis');
+    expect(weekdayName('2026-11-22')).toBe('sekmadienis');
+  });
+
+  it('formats relative days', () => {
+    expect(relativeDays('2026-11-16', '2026-11-16')).toBe('šiandien');
+    expect(relativeDays('2026-11-17', '2026-11-16')).toBe('rytoj');
+    expect(relativeDays('2026-11-15', '2026-11-16')).toBe('vakar');
+    expect(relativeDays('2026-12-01', '2026-11-16')).toBe('po 15 d.');
+    expect(relativeDays('2026-11-13', '2026-11-16')).toBe('prieš 3 d.');
   });
 
   it('uses the local civil date for today', () => {
     expect(todayKey(new Date(2026, 10, 16, 23, 59))).toBe('2026-11-16');
     expect(todayKey(new Date(2026, 0, 1, 0, 0))).toBe('2026-01-01');
+  });
+});
+
+describe('dayRanges', () => {
+  it('compresses contiguous days and keeps gaps', () => {
+    expect(
+      dayRanges(['2026-11-02', '2026-11-03', '2026-11-04', '2026-11-07']),
+    ).toEqual([
+      { from: '2026-11-02', to: '2026-11-04' },
+      { from: '2026-11-07', to: '2026-11-07' },
+    ]);
+  });
+
+  it('filters to a month, including ranges that cross its edge', () => {
+    expect(dayRanges(['2026-10-30', '2026-10-31', '2026-11-01'], '2026-11')).toEqual([
+      { from: '2026-11-01', to: '2026-11-01' },
+    ]);
+  });
+
+  it('handles an empty set', () => {
+    expect(dayRanges([])).toEqual([]);
   });
 });

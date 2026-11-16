@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { app } from '../lib/store.svelte';
-  import { formatLongDay } from '../lib/date';
+  import { formatLongDay, weekdayName } from '../lib/date';
   import {
     FLOWS,
     MOODS,
@@ -10,6 +10,7 @@
     eventDetail,
     eventLabel,
   } from '../lib/vocab';
+  import { COPY } from '../lib/strings';
   import type { DayKey, Severity } from '../lib/types';
   import Icon from './Icon.svelte';
 
@@ -64,7 +65,7 @@
     try {
       await task();
     } catch (cause) {
-      error = cause instanceof Error ? cause.message : 'Could not save that.';
+      error = cause instanceof Error ? cause.message : COPY.sheet.saveError;
     } finally {
       busy = false;
     }
@@ -139,8 +140,11 @@
   aria-labelledby="day-title"
 >
   <div class="sheet-head">
-    <h2 id="day-title" class="sheet-title">{formatLongDay(date)}</h2>
-    <button class="icon-btn" aria-label="Close" onclick={close}>
+    <div>
+      <h2 id="day-title" class="sheet-title">{formatLongDay(date)}</h2>
+      <p class="weekday">{weekdayName(date)}</p>
+    </div>
+    <button class="icon-btn" aria-label={COPY.common.close} onclick={close}>
       <Icon name="close" />
     </button>
   </div>
@@ -151,31 +155,29 @@
     {/if}
 
     {#if future}
-      <p class="future-note">
-        Notes and symptoms can be added here. Period events can't be logged in the future.
-      </p>
+      <p class="future-note">{COPY.sheet.futureNote}</p>
     {/if}
 
     {#if !future && (!hasStart || canBleed)}
       <div class="period-row">
         {#if !hasStart && !canBleed}
           <button class="chip" onclick={() => run(() => app.markPeriodStart(date))}>
-            Period started
+            {COPY.period.started}
           </button>
         {/if}
         {#if canBleed}
           <button class="chip" onclick={() => run(() => app.addPeriodDay(date))}>
-            Still bleeding
+            {COPY.period.still}
           </button>
           <button class="chip" onclick={() => run(() => app.markPeriodEnd(date))}>
-            Period ended
+            {COPY.period.finished}
           </button>
         {/if}
       </div>
     {/if}
 
     {#if events.length === 0}
-      <p class="empty">Nothing logged on this day.</p>
+      <p class="empty">{COPY.sheet.empty}</p>
     {:else}
       {#each events as event (event.id)}
         {@const detail = eventDetail(event)}
@@ -188,14 +190,14 @@
           </div>
           <button
             class="icon-btn"
-            aria-label={`Delete ${eventLabel(event)}`}
+            aria-label={COPY.sheet.deleteAria(eventLabel(event))}
             onclick={() => run(() => app.removeEvent(event.id))}
           >
             <Icon name="trash" size={18} />
           </button>
         </div>
         {#if event.kind === 'symptom'}
-          <div class="severity" role="group" aria-label={`Severity for ${eventLabel(event)}`}>
+          <div class="severity" role="group" aria-label={COPY.sheet.severityAria(eventLabel(event))}>
             {#each SEVERITIES as option (option.value)}
               <button
                 class:on={event.severity === option.value}
@@ -213,17 +215,17 @@
     {#if app.undo}
       <div class="undo-row">
         <span>{app.undo.message}</span>
-        <button onclick={() => app.undoLast()}>Undo</button>
+        <button onclick={() => app.undoLast()}>{COPY.common.undo}</button>
       </div>
     {/if}
 
     <div class="section">
-      <p class="section-title">Add</p>
+      <p class="section-title">{COPY.sheet.addTitle}</p>
       <div class="add-grid">
-        <button class="add" onclick={() => togglePanel('symptom')}>Symptom</button>
-        <button class="add" onclick={() => togglePanel('mood')}>Mood</button>
+        <button class="add" onclick={() => togglePanel('symptom')}>{COPY.sheet.symptom}</button>
+        <button class="add" onclick={() => togglePanel('mood')}>{COPY.sheet.mood}</button>
         {#if covers}
-          <button class="add" onclick={() => togglePanel('flow')}>Flow</button>
+          <button class="add" onclick={() => togglePanel('flow')}>{COPY.sheet.flow}</button>
         {/if}
         <button
           class="add"
@@ -232,36 +234,36 @@
           onclick={() => run(() => app.toggleIntimacy(date))}
         >
           {#if intimacy}<Icon name="check" size={14} />{/if}
-          Intimacy
+          {COPY.sheet.intimacy}
         </button>
-        <button class="add" onclick={() => togglePanel('note')}>Note</button>
-        <button class="add" onclick={() => togglePanel('custom')}>Custom</button>
+        <button class="add" onclick={() => togglePanel('note')}>{COPY.sheet.note}</button>
+        <button class="add" onclick={() => togglePanel('custom')}>{COPY.sheet.custom}</button>
       </div>
 
       {#if panel === 'symptom'}
         <div class="panel">
-          <p class="panel-title">Symptom</p>
+          <p class="panel-title">{COPY.sheet.symptomLabel}</p>
           <div class="chips">
             {#each SYMPTOMS as symptom (symptom)}
               <button class="chip" onclick={() => addSymptom(symptom)}>{symptom}</button>
             {/each}
-            <button class="chip" onclick={() => (panel = 'symptomOther')}>Other…</button>
+            <button class="chip" onclick={() => (panel = 'symptomOther')}>{COPY.sheet.symptomOther}</button>
           </div>
         </div>
       {:else if panel === 'symptomOther'}
         <div class="panel">
-          <label class="field-label" for="symptom-text">Symptom</label>
+          <label class="field-label" for="symptom-text">{COPY.sheet.symptomLabel}</label>
           <input
             id="symptom-text"
             bind:this={symptomInput}
             bind:value={symptomText}
-            placeholder="Name it"
+            placeholder={COPY.sheet.symptomPlaceholder}
           />
-          <button class="secondary" onclick={saveSymptomOther}>Add symptom</button>
+          <button class="secondary" onclick={saveSymptomOther}>{COPY.sheet.addSymptom}</button>
         </div>
       {:else if panel === 'mood'}
         <div class="panel">
-          <p class="panel-title">Mood</p>
+          <p class="panel-title">{COPY.sheet.mood}</p>
           <div class="chips">
             {#each MOODS as mood, index (mood)}
               <button
@@ -276,7 +278,7 @@
         </div>
       {:else if panel === 'flow'}
         <div class="panel">
-          <p class="panel-title">Flow</p>
+          <p class="panel-title">{COPY.sheet.flow}</p>
           <div class="chips">
             {#each FLOWS as flow (flow.value)}
               <button
@@ -291,32 +293,32 @@
         </div>
       {:else if panel === 'note'}
         <div class="panel">
-          <label class="field-label" for="note-text">Note</label>
+          <label class="field-label" for="note-text">{COPY.sheet.noteLabel}</label>
           <textarea
             id="note-text"
             bind:this={noteInput}
             bind:value={note}
-            placeholder="Anything you want to remember"
+            placeholder={COPY.sheet.notePlaceholder}
           ></textarea>
-          <button class="secondary" onclick={saveNote}>Add note</button>
+          <button class="secondary" onclick={saveNote}>{COPY.sheet.addNote}</button>
         </div>
       {:else if panel === 'custom'}
         <div class="panel">
-          <label class="field-label" for="custom-text">Custom event</label>
+          <label class="field-label" for="custom-text">{COPY.sheet.customLabel}</label>
           <input
             id="custom-text"
             bind:this={customInput}
             bind:value={customText}
-            placeholder="e.g. Started a new pack"
+            placeholder={COPY.sheet.customPlaceholder}
           />
-          <button class="secondary" onclick={saveCustom}>Add event</button>
+          <button class="secondary" onclick={saveCustom}>{COPY.sheet.addCustom}</button>
         </div>
       {/if}
     </div>
   </div>
 
   <div class="sheet-foot">
-    <button class="primary" onclick={close}>Done</button>
+    <button class="primary" onclick={close}>{COPY.common.done}</button>
   </div>
 </dialog>
 
@@ -329,11 +331,11 @@
   }
 
   .chip {
-    min-height: 40px;
+    min-height: 44px;
     padding: 0 12px;
-    border: 1px solid var(--line);
+    border: 1px solid var(--line-strong);
     border-radius: var(--radius);
-    font-size: 14px;
+    font-size: 15px;
   }
 
   .chip.on {
@@ -356,13 +358,13 @@
 
   .event-label {
     margin: 0;
-    font-size: 15px;
+    font-size: 16px;
   }
 
   .event-detail {
     margin: 2px 0 0;
     color: var(--muted);
-    font-size: 13px;
+    font-size: 14px;
     white-space: pre-wrap;
   }
 
@@ -373,11 +375,11 @@
   }
 
   .severity button {
-    min-height: 40px;
+    min-height: 44px;
     padding: 0 10px;
-    border: 1px solid var(--line);
+    border: 1px solid var(--line-strong);
     border-radius: 10px;
-    font-size: 12px;
+    font-size: 13px;
   }
 
   .severity button.on {
@@ -414,9 +416,9 @@
     justify-content: center;
     gap: 4px;
     min-height: 44px;
-    border: 1px solid var(--line);
+    border: 1px solid var(--line-strong);
     border-radius: var(--radius);
-    font-size: 14px;
+    font-size: 15px;
   }
 
   .add.on {
@@ -468,6 +470,12 @@
 
   .future-note {
     margin: 10px 0;
+    color: var(--muted);
+    font-size: 14px;
+  }
+
+  .weekday {
+    margin: 2px 0 0;
     color: var(--muted);
     font-size: 13px;
   }

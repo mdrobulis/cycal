@@ -3,6 +3,8 @@
 Proposal v0.1 · 13 Nov 2026 · implemented 16 Nov 2026 · single user, single device, no account
 
 > **Built.** See [README.md](README.md) for run/test instructions and [PLAN.md](PLAN.md) for the final decisions and build report.
+>
+> **v1.1 UI pass (16 Nov 2026):** the UI is now Lithuanian, with a higher-contrast palette and a dated calendar summary. The original “English UI” wording in §1 is historical; see §10.
 
 **The job, in the user's words:** *"Check where I am in my cycle, and note what happened today."*
 
@@ -163,3 +165,10 @@ Implemented in the order planned in [PLAN.md](PLAN.md) §6: scaffold and tokens 
 - **Not verified here:** a real iOS install, real screen-reader output, and importing the `.ics` file into Apple/Google Calendar. These are listed as untested, not claimed.
 - **No notifications, no lock, no sync** — deliberate. `.ics` export is the reminder path; the phone passcode is the lock; a file backup is the sync.
 - **Scope creep toward charts and "insights."** v1 records; it does not interpret. That is the line.
+
+
+## 10. v1.1 UI update — 16 Nov 2026
+
+The app is now Lithuanian throughout, using direct “tu” copy, short dates (`lapkr. 16 d.`), full Lithuanian weekdays, Lithuanian plural forms and a Lithuanian `.ics` export. The palette was reworked for contrast: solid recorded-period fill, dashed predictions, fertile tint plus dotted underline, ovulation ring, and a dated summary of the visible month above the grid. The dashboard is a compact two-column grid, and previous/next/today moved into the calendar header. No schema, storage, URL or QR changes; existing backups remain valid.
+
+Screenshots: [`screenshots/`](screenshots/). Verification: 64 unit tests, 9 Playwright flows, 57.8 KB gzip JS, no overflow at 320/390, no visible control below 44 px.

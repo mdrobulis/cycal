@@ -1,4 +1,6 @@
 <script lang="ts">
+  import { COPY } from '../lib/strings';
+
   let {
     open,
     title,
@@ -39,7 +41,7 @@
     <h2 id={titleId}>{title}</h2>
     <p>{message}</p>
     <div class="actions">
-      <button class="secondary" onclick={onCancel}>Cancel</button>
+      <button class="secondary" onclick={onCancel}>{COPY.common.cancel}</button>
       <button class="danger-button" onclick={onConfirm}>{confirmLabel}</button>
     </div>
   </div>

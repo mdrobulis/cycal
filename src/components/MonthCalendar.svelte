@@ -6,8 +6,9 @@
     today as adtToday,
     type DateValue,
   } from '@internationalized/date';
-  import { rangeSet } from '../lib/date';
+  import { dayRanges, formatDay, formatRange, rangeSet } from '../lib/date';
   import { recordedPeriodDays } from '../lib/periods';
+  import { COPY } from '../lib/strings';
   import type { CycleStats, DayEvent, DayKey } from '../lib/types';
   import Icon from './Icon.svelte';
 
@@ -43,6 +44,45 @@
   // The view starts on today's month; later navigation is owned by the calendar.
   // svelte-ignore state_referenced_locally
   let placeholder = $state<DateValue>(parseDate(today));
+
+  const visiblePrefix = $derived(
+    `${placeholder.year}-${String(placeholder.month).padStart(2, '0')}`,
+  );
+
+  const recordedText = $derived(
+    dayRanges(recorded, visiblePrefix)
+      .map((range) => formatRange(range.from, range.to))
+      .join(' · '),
+  );
+  const predictedText = $derived(
+    dayRanges(predicted, visiblePrefix)
+      .map((range) => formatRange(range.from, range.to))
+      .join(' · '),
+  );
+  const fertileText = $derived(
+    dayRanges(fertile, visiblePrefix)
+      .map((range) => formatRange(range.from, range.to))
+      .join(' · '),
+  );
+  const ovulation = $derived(
+    stats.ovulation?.startsWith(visiblePrefix) ? stats.ovulation : undefined,
+  );
+  const loggedCount = $derived.by(() => {
+    let count = 0;
+    for (const [day, list] of byDay) {
+      if (!day.startsWith(visiblePrefix)) continue;
+      count += list.filter(
+        (event) =>
+          event.kind !== 'period-start' &&
+          event.kind !== 'period-day' &&
+          event.kind !== 'period-end',
+      ).length;
+    }
+    return count;
+  });
+  const hasMarks = $derived(
+    Boolean(recordedText || predictedText || fertileText || ovulation || loggedCount),
+  );
 
   function handleValueChange(next: DateValue | DateValue[] | undefined): void {
     if (Array.isArray(next) || !next) return;
@@ -81,7 +121,7 @@
   }
 </script>
 
-<section class="calendar" aria-label="Month calendar">
+<section class="calendar" aria-label={COPY.calendar.sectionAria}>
   <Calendar.Root
     type="single"
     {value}
@@ -90,15 +130,94 @@
     weekStartsOn={1}
     weekdayFormat="short"
     fixedWeeks
-    locale="en-GB"
-    calendarLabel="Cycle calendar"
+    locale="lt-LT"
+    calendarLabel={COPY.calendar.label}
     initialFocus={false}
   >
     {#snippet children({ months, weekdays })}
       <Calendar.Header class="cal-head">
-        <Calendar.MonthSelect aria-label="Month" />
-        <Calendar.YearSelect aria-label="Year" />
+        <button
+          class="icon-btn"
+          aria-label={COPY.calendar.prev}
+          onclick={() => shiftMonth(-1)}
+        >
+          <Icon name="chevron-left" />
+        </button>
+        <Calendar.MonthSelect aria-label={COPY.calendar.month} />
+        <Calendar.YearSelect aria-label={COPY.calendar.year} />
+        <button
+          class="icon-btn"
+          aria-label={COPY.calendar.next}
+          onclick={() => shiftMonth(1)}
+        >
+          <Icon name="chevron-right" />
+        </button>
+        <button class="icon-btn" aria-label={COPY.calendar.today} onclick={goToday}>
+          <Icon name="calendar" />
+        </button>
       </Calendar.Header>
+
+      <div class="cal-summary" aria-label={COPY.calendar.summaryAria}>
+        {#if stats.paused}
+          <p class="summary-note">{COPY.calendar.summary.paused}</p>
+        {:else if stats.irregular}
+          <p class="summary-note">{COPY.calendar.summary.irregular}</p>
+        {/if}
+
+        {#if recordedText}
+          <div class="item">
+            <i class="swatch period" aria-hidden="true"></i>
+            <span class="snippet">
+              <span class="summary-label">{COPY.calendar.summary.period}</span>
+              <span class="summary-when"> {recordedText}</span>
+            </span>
+          </div>
+        {/if}
+
+        {#if predictedText}
+          <div class="item">
+            <i class="swatch predicted" aria-hidden="true"></i>
+            <span class="snippet">
+              <span class="summary-label">{COPY.calendar.summary.predicted}</span>
+              <span class="summary-when"> {predictedText}</span>
+            </span>
+          </div>
+        {/if}
+
+        {#if fertileText}
+          <div class="item">
+            <i class="swatch fertile" aria-hidden="true"></i>
+            <span class="snippet">
+              <span class="summary-label">{COPY.calendar.summary.fertile}</span>
+              <span class="summary-when"> {fertileText}</span>
+            </span>
+          </div>
+        {/if}
+
+        {#if ovulation}
+          <div class="item">
+            <i class="swatch ovulation" aria-hidden="true"></i>
+            <span class="snippet">
+              <span class="summary-label">{COPY.calendar.summary.ovulation}</span>
+              <span class="summary-when"> {formatDay(ovulation)}</span>
+            </span>
+          </div>
+        {/if}
+
+        {#if loggedCount > 0}
+          <div class="item">
+            <i class="swatch logged" aria-hidden="true"></i>
+            <span class="snippet">
+              <span class="summary-label">{COPY.calendar.summary.logged}:</span>
+              <span class="summary-when"> {loggedCount}</span>
+            </span>
+          </div>
+        {/if}
+
+        {#if !hasMarks && !stats.paused && !stats.irregular}
+          <p class="summary-note">{COPY.calendar.summary.noMarks}</p>
+        {/if}
+      </div>
 
       {#each months as month (month.value.toString())}
         <Calendar.Grid class="cal-grid">
@@ -133,23 +252,6 @@
           </Calendar.GridBody>
         </Calendar.Grid>
       {/each}
-
-      <div class="cal-legend">
-        <span><i class="lg-recorded"></i>recorded</span>
-        <span><i class="lg-predicted"></i>predicted</span>
-        <span><i class="lg-fertile"></i>fertile</span>
-        <span><i class="lg-event"></i>logged</span>
-      </div>
     {/snippet}
   </Calendar.Root>
-
-  <div class="cal-nav">
-    <button class="icon-btn" aria-label="Previous month" onclick={() => shiftMonth(-1)}>
-      <Icon name="chevron-left" />
-    </button>
-    <button class="today" onclick={goToday}>Today</button>
-    <button class="icon-btn" aria-label="Next month" onclick={() => shiftMonth(1)}>
-      <Icon name="chevron-right" />
-    </button>
-  </div>
 </section>

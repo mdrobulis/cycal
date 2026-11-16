@@ -22,13 +22,13 @@ describe('backup round trip', () => {
 
   it('rejects a file from another app', () => {
     expect(() => parseBackup(JSON.stringify({ app: 'other', schema: 1, events: [] }))).toThrow(
-      /not a Cycal backup/,
+      /Tai ne Cycal kopija/,
     );
   });
 
   it('rejects an unknown schema', () => {
     expect(() => parseBackup(JSON.stringify({ app: 'cycal', schema: 2, events: [] }))).toThrow(
-      /Unsupported backup version/,
+      /Nepalaikoma kopijos versija/,
     );
   });
 
@@ -38,11 +38,11 @@ describe('backup round trip', () => {
       ...file,
       events: [{ ...file.events[0], date: '2026-02-30' }],
     };
-    expect(() => parseBackup(JSON.stringify(broken))).toThrow(/cannot read/);
+    expect(() => parseBackup(JSON.stringify(broken))).toThrow(/neperskaito/);
   });
 
   it('rejects invalid JSON', () => {
-    expect(() => parseBackup('{oops')).toThrow(/not valid JSON/);
+    expect(() => parseBackup('{oops')).toThrow(/netinkamas JSON/);
   });
 });
 
