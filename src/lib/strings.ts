@@ -21,6 +21,7 @@ export const COPY = {
     done: 'Gerai',
     cancel: 'Atšaukti',
     undo: 'Atšaukti',
+    save: 'Išsaugoti',
     delete: 'Ištrinti',
     add: 'Pridėti',
     today: 'Šiandien',
@@ -32,6 +33,8 @@ export const COPY = {
     calendar: 'Kalendorius',
   },
   app: {
+    periods: 'Mėnesinės',
+    periodsAria: 'Naujas mėnesinių intervalas',
     settingsAria: 'Nustatymai',
     privacy: 'Privatumas',
     privacyNote:
@@ -129,6 +132,11 @@ export const COPY = {
     },
     summaryAria: 'Mėnesio suvestinė',
     dragHint: 'Brauk: pradžia → pabaiga',
+    pickerStart: 'Pradžia',
+    pickerEnd: 'Pabaiga',
+    pickerOpen: 'Be pabaigos',
+    pickerHint: 'Pasirink pradžią ir pabaigą',
+    editInterval: 'Keisti intervalą',
     created: 'Mėnesinės įrašytos',
     updated: 'Intervalas atnaujintas',
     needsEnd: 'Trūksta pabaigos',

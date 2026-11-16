@@ -7,6 +7,7 @@ import {
   periodBlocks,
   periodDisplayDays,
   periodRangeIssue,
+  periodStarts,
   type PeriodRangeIssue,
 } from './periods';
 import * as db from './db';
@@ -185,6 +186,9 @@ class CycalStore {
     if (date > this.today) throw new Error(COPY.errors.futureStart);
     if (diffDays(date, this.today) > MAX_OPEN_PERIOD_DAYS) {
       throw new Error(COPY.errors.periodOpenTooOld);
+    }
+    if (periodStarts(this.events).some((start) => start > date)) {
+      throw new Error(COPY.errors.periodOpenNotLatest);
     }
     if (this.hasEvent(date, 'period-start')) return 'exists';
 

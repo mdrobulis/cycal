@@ -17,6 +17,9 @@
   let view = $state<View>('home');
   let homeTab = $state<HomeTab>('today');
   let selectedDay = $state<DayKey | null>(null);
+  let rangeMode = $state(false);
+  let rangeInitialStart = $state<DayKey | null>(null);
+  let rangeInitialEnd = $state<DayKey | null>(null);
   let historyReturn = $state<'home' | 'settings'>('settings');
   let historyStartAdding = $state(false);
   let actionError = $state<string | null>(null);
@@ -41,6 +44,7 @@
   }
 
   function go(next: View): void {
+    if (next !== 'home') rangeMode = false;
     view = next;
     window.scrollTo({ top: 0 });
   }
@@ -53,6 +57,7 @@
 
   function selectTab(tab: HomeTab): void {
     if (homeTab === tab) return;
+    if (tab !== 'calendar') rangeMode = false;
     homeTab = tab;
     window.scrollTo({ top: 0, behavior: reduceMotion() ? 'auto' : 'smooth' });
   }
@@ -68,6 +73,15 @@
     event.preventDefault();
     selectTab(next);
     document.getElementById(`tab-${next}`)?.focus();
+  }
+
+  function openPeriodRange(initial?: { start: DayKey; end?: DayKey | null }): void {
+    selectedDay = null;
+    rangeInitialStart = initial?.start ?? null;
+    rangeInitialEnd = initial?.end ?? null;
+    rangeMode = true;
+    homeTab = 'calendar';
+    window.scrollTo({ top: 0, behavior: reduceMotion() ? 'auto' : 'smooth' });
   }
 
   async function closeDay(): Promise<void> {
@@ -105,7 +119,7 @@
   }
 </script>
 
-<div class="app" class:with-actionbar={Boolean(app.activePeriod)}>
+<div class="app" class:with-actionbar={view === 'home' && !rangeMode}>
   {#if view === 'home'}
     <header class="topbar">
       <h1 class="wordmark">Cycal</h1>
@@ -187,10 +201,17 @@
           selectedDay={selectedDay}
           onSelectDay={(day) => (selectedDay = day)}
           onClearSelection={() => (selectedDay = null)}
+          bind:rangeMode
+          {rangeInitialStart}
+          {rangeInitialEnd}
         />
         {#if selectedDay}
           {#key selectedDay}
-            <DayPanel date={selectedDay} onClose={closeDay} />
+            <DayPanel
+              date={selectedDay}
+              onClose={closeDay}
+              onEditRange={(start: DayKey, end: DayKey | null) => openPeriodRange({ start, end })}
+            />
           {/key}
         {/if}
       </div>
@@ -202,15 +223,23 @@
   </main>
 </div>
 
-{#if app.ready && view === 'home' && app.activePeriod}
+{#if app.ready && view === 'home' && !rangeMode}
   <footer class="actionbar">
     <div class="actionbar-inner">
-      <ActivePeriodCard
-        period={app.activePeriod}
-        flow={app.flowForDay(app.today)}
-        onChange={openTodayBleeding}
-        onEnded={() => runAction(() => app.endActivePeriod(app.today))}
-      />
+      {#if app.activePeriod}
+        <ActivePeriodCard
+          period={app.activePeriod}
+          flow={app.flowForDay(app.today)}
+          onChange={openTodayBleeding}
+          onEnded={() => runAction(() => app.endActivePeriod(app.today))}
+        />
+      {:else}
+        <button
+          class="primary"
+          aria-label={COPY.app.periodsAria}
+          onclick={() => openPeriodRange()}
+        >{COPY.app.periods}</button>
+      {/if}
     </div>
   </footer>
 {/if}

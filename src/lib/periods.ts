@@ -51,7 +51,7 @@ export function periodBlocks(events: DayEvent[], today: DayKey): PeriodBlock[] {
     const fresh = open && latest && start <= today && age <= MAX_OPEN_PERIOD_DAYS;
     const active = fresh;
     const stale = open && latest && start <= today && age > MAX_OPEN_PERIOD_DAYS;
-    const displayEnd = end ?? (active ? today : lastConfirmed);
+    const displayEnd = end ?? lastConfirmed;
     return {
       start,
       end,
@@ -67,11 +67,9 @@ export function periodBlocks(events: DayEvent[], today: DayKey): PeriodBlock[] {
 }
 
 /**
- * Days that are visibly part of a period:
- * - closed: start..end;
- * - fresh open: start..today (the current record is ongoing);
- * - stale/incomplete open: only the start and explicitly confirmed days, never
- *   a speculative multi-week span.
+ * Days that are visibly part of a period: start..end when closed, otherwise
+ * only the start and explicitly confirmed days. An open period is never painted
+ * speculatively through today.
  */
 export function periodDisplayDays(events: DayEvent[], today: DayKey): Set<DayKey> {
   const result = new Set<DayKey>();
@@ -79,8 +77,6 @@ export function periodDisplayDays(events: DayEvent[], today: DayKey): Set<DayKey
   for (const block of periodBlocks(events, today)) {
     if (block.end) {
       for (const day of rangeDays(block.start, block.end)) result.add(day);
-    } else if (block.active) {
-      for (const day of rangeDays(block.start, today)) result.add(day);
     } else {
       result.add(block.start);
       for (const day of confirmed) {

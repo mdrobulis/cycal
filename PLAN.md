@@ -13,6 +13,8 @@ Status: v4 · implemented and verified 16 Nov 2026
 > **Period range pass (16 Nov 2026):** Calendar gains a tap-or-drag range mode that writes a completed period start/end in one go. See §16.
 >
 > **Direct period records (16 Nov 2026):** Calendar is now the period editor. Dragging start→end creates one record; edge grips correct start/end; open starts are recent-only; stale starts do not paint a span. The action-bar period buttons and range mode are gone. See §17.
+>
+> **Range-picker pass (16 Nov 2026):** `Mēnesinės` opens an explicit draft range picker with a hotel-style band, exact 11–13 selection, movable end, Save and “Be pabaigos”. Open starts no longer paint through today. See §18.
 
 A local-only **Vite + Svelte 5 SPA PWA** for one person, with the month grid built on **Bits UI Calendar** and styled entirely from our own tokens. No account, no backend, no telemetry.
 
@@ -454,3 +456,16 @@ The v1 mechanics, schema, URLs and QR stayed unchanged. This pass changed presen
 **Gestures.** Pointer Events with delayed capture; taps route through the same pointer handler so adjacent-month days select consistently; a persistent capture-phase click guard suppresses synthetic clicks after drags. `touch-action:none` on the grid; page scrolling remains outside it.
 
 **Verification.** 95 unit tests in 8 files; 24 Playwright flows (direct mouse/touch create, adjacent month, start/end edits, open-end close, stale start, flow trim, undo, future, existing flows); build **64.6 KB gzip JS**, 4.8 KB gzip CSS, 15 precached files (230 KiB). No IndexedDB, backup, settings, URL or QR changes. Real iOS safe-area/screen-reader behaviour and ICS import remain untested.
+
+
+## 18. Hotel-style range picker — 16 Nov 2026
+
+**Entry.** With no active period, the fixed bottom action is `Mēnesinės` (not a today shortcut). It opens the draft range picker on Calendar. An existing period exposes `Keisti intervalą` in the day panel, prefilled with its start/end.
+
+**Selection.** The picker shows `Pradžia` and `Pabaiga`, `Išsaugoti`, `Be pabaigos` and `Atšaukti`. Tapping a start and end — or dragging — paints a continuous band with dark start/end caps. Nothing is written until Save. A completed range can move its end by tapping a later day or dragging the end cap; the draft updates first. `Be pabaigos` saves an open start. `Atšaukti` writes nothing.
+
+**Open records.** An open period no longer paints from its start through today. It marks only the start and explicitly confirmed days; the active card carries the ongoing state. A start older than 10 days is incomplete, shows only confirmed days and a `Trūksta pabaigos` note; it cannot be created as a new open start and must be repaired with an end.
+
+**Visual grammar.** Draft and saved periods share the same range band: accent-soft span, dark start/end caps, white endpoint text. The direct calendar drag and edge grips remain as shortcuts; taps open the day panel in normal mode. The picker uses the full calendar; `touch-action:none` remains on the grid.
+
+**Verification.** 95 unit tests in 8 files; 26 Playwright flows (picker 11–13 exact, end move, open save, direct/touch/adjacent month, edits, stale, flow trim, undo, existing flows); build **65.8 KB gzip JS**, 5.0 KB gzip CSS, 15 precached files (235 KiB). No IndexedDB, backup, settings, URL or QR changes. Real iOS safe-area/screen-reader behaviour and ICS import remain untested.

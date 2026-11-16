@@ -13,6 +13,8 @@ Proposal v0.1 · 13 Nov 2026 · implemented 16 Nov 2026 · single user, single d
 > **Period range pass (16 Nov 2026):** Calendar can record a completed period by tapping or dragging its start and end. See §13.
 >
 > **Direct period records (16 Nov 2026):** Calendar is the editor: drag start→end to create, drag edge grips to correct; open starts are recent-only and stale starts do not paint a span. See §14.
+>
+> **Range-picker pass (16 Nov 2026):** `Mēnesinės` opens a draft hotel-style range picker with exact endpoints, movable end, Save and “Be pabaigos”. See §15.
 
 **The job, in the user's words:** *"Check where I am in my cycle, and note what happened today."*
 
@@ -210,3 +212,10 @@ No IndexedDB, backup, settings, URL or QR changes. Verification: 89 unit tests, 
 The action-bar period buttons and range mode are gone. On Calendar, drag from a start day to an end day on any visible past-or-today date to create one period; a tap still opens the day panel. Start and end cells have edge grips: drag the start to move it, drag the end to move or close it; a one-day record uses drag direction. A recent start-only period is active and displayed through today; a start older than 10 days is incomplete, shows only confirmed days, and must be given an end. `touch-action:none` reserves the grid for dragging, with page scrolling outside it. Flows remain optional per period day; editing trims flows outside the interval, and a one-level undo is offered.
 
 No IndexedDB, backup, settings, URL or QR changes. Verification: 95 unit tests, 24 browser flows, 64.6 KB gzip JS, 4.8 KB gzip CSS.
+
+
+## 15. Hotel-style range picker — 16 Nov 2026
+
+`Mēnesinės` opens a draft picker on Calendar with a connected range band, dark start/end caps, `Pradžia`/`Pabaiga`, `Išsaugoti`, `Be pabaigos` and `Atšaukti`. Tap or drag the endpoints; the end can be moved by tapping a later day or dragging it, and nothing writes until Save. Existing periods expose `Keisti intervalą`. Open periods show only the start and confirmed days, never a speculative span through today; stale starts need an end. Direct drag and edge grips remain shortcuts.
+
+No IndexedDB, backup, settings, URL or QR changes. Verification: 95 unit tests, 26 browser flows, 65.8 KB gzip JS, 5.0 KB gzip CSS.

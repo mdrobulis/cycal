@@ -516,13 +516,40 @@ textarea {
   outline-offset: 2px;
 }
 
+.cal-cell.is-period {
+  background: var(--accent-soft);
+}
+
+.cal-cell.is-period-start {
+  border-radius: 999px 0 0 999px;
+}
+
+.cal-cell.is-period-end {
+  border-radius: 0 999px 999px 0;
+}
+
+.cal-cell.is-period-start.is-period-end {
+  border-radius: 999px;
+}
+
 .cal-cell.is-period .cal-day {
-  background: var(--period-fill);
-  color: var(--on-period);
+  background: transparent;
+  color: var(--ink);
+}
+
+.cal-cell.is-period-start .cal-day,
+.cal-cell.is-period-end .cal-day {
+  background: var(--accent);
+  color: var(--on-accent);
 }
 
 .cal-cell.is-period .cal-day[data-today] {
-  box-shadow: inset 0 0 0 2px var(--on-period);
+  box-shadow: inset 0 0 0 2px var(--ink);
+}
+
+.cal-cell.is-period-start .cal-day[data-today],
+.cal-cell.is-period-end .cal-day[data-today] {
+  box-shadow: inset 0 0 0 2px var(--on-accent);
 }
 
 .cal-cell.is-predicted .cal-day {
@@ -558,6 +585,90 @@ textarea {
   line-height: 1.35;
 }
 
+.picker-bar {
+  margin: 2px 0 8px;
+  padding: 8px 0;
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+}
+
+.picker-hint {
+  margin: 0 0 6px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.picker-dates {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 8px;
+  color: var(--ink);
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+
+.picker-dates b {
+  color: var(--muted);
+  font-weight: 500;
+}
+
+.picker-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.picker-actions .primary {
+  flex: 1 1 120px;
+  min-height: 44px;
+  padding-inline: 12px;
+}
+
+.picker-actions .secondary {
+  flex: 0 0 auto;
+  padding-inline: 12px;
+}
+
+.picker-actions .link-button {
+  margin-left: auto;
+}
+
+.picker-error {
+  margin: 6px 0 0;
+  color: var(--danger);
+  font-size: 12.5px;
+}
+
+.cal-cell.is-picker-in {
+  background: var(--accent-soft);
+}
+
+.cal-cell.is-picker-start {
+  border-radius: 999px 0 0 999px;
+}
+
+.cal-cell.is-picker-end {
+  border-radius: 0 999px 999px 0;
+}
+
+.cal-cell.is-picker-start.is-picker-end {
+  border-radius: 999px;
+}
+
+.cal-cell.is-picker-start .cal-day,
+.cal-cell.is-picker-end .cal-day {
+  background: var(--accent);
+  color: var(--on-accent);
+}
+
+.cal-cell.is-picker-start.is-period .cal-day,
+.cal-cell.is-picker-end.is-period .cal-day {
+  background: var(--accent);
+  color: var(--on-accent);
+}
+
 .cal-cell.is-period-start .cal-day::before,
 .cal-cell.is-period-end .cal-day::after {
   content: '';
@@ -582,6 +693,10 @@ textarea {
 .cal-cell.is-period.is-period-start .cal-day::before,
 .cal-cell.is-period.is-period-end .cal-day::after {
   background: var(--on-period);
+}
+
+.cal-cell.is-period-incomplete {
+  background: transparent;
 }
 
 .cal-cell.is-period-incomplete .cal-day {
@@ -637,7 +752,12 @@ textarea {
 }
 
 .cal-cell.is-period.is-ovulation .num {
-  outline-color: var(--on-period);
+  outline-color: var(--ink);
+}
+
+.cal-cell.is-period-start.is-ovulation .num,
+.cal-cell.is-period-end.is-ovulation .num {
+  outline-color: var(--on-accent);
 }
 
 /* Dialogs and feedback */

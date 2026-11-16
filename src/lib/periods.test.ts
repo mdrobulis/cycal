@@ -20,7 +20,7 @@ describe('periodBlocks', () => {
       open: true,
       active: true,
       stale: false,
-      displayEnd: TODAY,
+      displayEnd: '2026-11-09',
       hasConfirmations: false,
     });
     expect(block?.end).toBeUndefined();
@@ -39,7 +39,7 @@ describe('periodBlocks', () => {
     expect(block?.lastConfirmed).toBe('2026-11-11');
     expect(block?.active).toBe(true);
     expect(block?.hasConfirmations).toBe(true);
-    expect(block?.displayEnd).toBe(TODAY);
+    expect(block?.displayEnd).toBe('2026-11-11');
   });
 
   it('closes at an explicit end and measures the length', () => {
@@ -126,18 +126,9 @@ describe('periodDisplayDays', () => {
     expect([...days].sort()).toEqual(['2026-11-09', '2026-11-10', '2026-11-11']);
   });
 
-  it('marks a fresh start-only period through today', () => {
+  it('marks a fresh start-only period only on its recorded start', () => {
     const days = periodDisplayDays([event('period-start', '2026-11-09')], TODAY);
-    expect([...days].sort()).toEqual([
-      '2026-11-09',
-      '2026-11-10',
-      '2026-11-11',
-      '2026-11-12',
-      '2026-11-13',
-      '2026-11-14',
-      '2026-11-15',
-      '2026-11-16',
-    ]);
+    expect([...days]).toEqual(['2026-11-09']);
   });
 
   it('does not paint a stale open period through today', () => {

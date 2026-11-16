@@ -16,8 +16,8 @@ Built from [PROPOSAL.md](PROPOSAL.md); the decisions and build report live in [P
 
 - **Tabs:** `Šiandien` and `Kalendorius` switch in one tap; the tab bar stays reachable while scrolling.
 - **Today:** a countdown board. Cycle day and phase are compact context; four tiles show the days left to the next period, fertile window, ovulation and PMS as the large numbers, with dates as small muted notes. Last period is a small footer. No prose status lines.
-- **Period logging:** Calendar is the period editor. Drag from a start day to an end day on any visible past-or-today day to create one closed period. Tap a day to open its records. Drag a period's start or end grip to correct it; an open period has a soft end at today. A recent start-only period is active and marks through today; a start older than 10 days is incomplete and shows only its confirmed days, never a speculative span. Bleed levels are optional per day via the single `Lengvas` / `Vidutinis` / `Stiprus` control. The active card shows today's level, `Keisti`, and `Baigėsi`.
-- **Calendar:** drag a start/end interval directly on the grid, with edge grips for correction; taps still open the inline record panel **below** the calendar, never a modal. Solid recorded period days, dashed predicted days, fertile tint with a dotted underline, ovulation ring, and small event-type icons (symptom, mood, flow, intimacy, note, custom) with a compact legend. Month/year selects and previous/next/today controls sit in the calendar header; keyboard navigation works.
+- **Period logging:** `Mēnesinės` opens a draft range picker on the Calendar. Tap a start and end — or drag across days — and the selected band shows exactly those dates; `Išsaugoti` writes that range, `Be pabaigos` saves an open start, and `Atšaukti` discards it. Tap a day to open its records. Change an existing period through `Keisti intervalą`; the end can be moved by tapping or dragging a new day. Direct dragging on the grid remains a shortcut. An open start is never painted through today; a start older than 10 days is incomplete, shows only confirmed days, and must be given an end. Bleed levels remain optional per day via the single `Lengvas` / `Vidutinis` / `Stiprus` control. The active card shows today's level, `Keisti`, and `Baigėsi`.
+- **Calendar:** hotel-style range bands: dark start/end caps with a continuous tinted span. The draft picker and saved periods use the same visual grammar. Direct drag and edge grips remain; taps open the inline record panel **below** the calendar, never a modal. Dashed predicted days, fertile tint with a dotted underline, ovulation ring, and small event-type icons (symptom, mood, flow, intimacy, note, custom) with a compact legend. Month/year selects and previous/next/today controls sit in the calendar header; keyboard navigation works.
 - **Day panel:** the single bleeding-intensity control, symptoms (with mild/moderate/severe), mood, intimacy (protected or unprotected), notes and custom labels, all with delete + undo. Notes and custom entries can be edited in place on past days.
 - **History editor:** add completed past periods with start/end dates, edit a cycle's dates, or delete it. Non-period records on those days are preserved; predictions and cycle stats update immediately. Entry is offered from the empty Today screen and Settings → Ciklų istorija.
 - **Predictions:** median of recent cycles, a 28-day default until two cycles exist, ranges when cycles vary, and Auto / Irregular / Paused modes.
@@ -51,7 +51,7 @@ PLAYWRIGHT_BROWSERS_PATH="$PWD/.playwright-browsers" pnpm exec playwright instal
 PLAYWRIGHT_BROWSERS_PATH="$PWD/.playwright-browsers" pnpm exec playwright test
 ```
 
-The twenty-four flows cover first run and persistence, countdown tiles, tabs and tab-state preservation, the single bleeding-intensity control, active-day edge case, direct create, adjacent-month and touch drags, start/end edge edits, open-end closing, stale start handling, flow trimming, undo, future refusal, inline day panel, event icons/legend, note editing, intimacy protection, keyboard operation, backdating, pause mode, history add/edit/delete, ICS download, export → erase → import, strict CSP and offline reload. All selectors use the same Lithuanian copy as the app.
+The twenty-six flows cover first run and persistence, countdown tiles, tabs and tab-state preservation, the single bleeding-intensity control, active-day edge case, the draft range picker (11–13 exact), end movement, open starts, direct create, adjacent-month and touch drags, start/end edge edits, stale start handling, flow trimming, undo, future refusal, inline day panel, event icons/legend, note editing, intimacy protection, keyboard operation, backdating, pause mode, history add/edit/delete, ICS download, export → erase → import, strict CSP and offline reload. All selectors use the same Lithuanian copy as the app.
 
 ## Install as a PWA
 
@@ -94,9 +94,9 @@ The canonical date is a `YYYY-MM-DD` string everywhere except inside `MonthCalen
 
 ## Verification snapshot
 
-- 95 unit tests in 8 files and 24 Playwright flows pass; `svelte-check` is clean.
-- Production build: **64.6 KB gzip JS**, 4.8 KB gzip CSS, 15 precached files (≈230 KB).
-- 390 px and 320 px: no horizontal overflow; the 2×2 countdown grid, day cells 46×46/40×40 and all tabs/controls are finger-sized. The calendar shows the full month above the fixed active-period card when one exists; the day panel sits below it.
+- 95 unit tests in 8 files and 26 Playwright flows pass; `svelte-check` is clean.
+- Production build: **65.8 KB gzip JS**, 5.0 KB gzip CSS, 15 precached files (≈235 KB).
+- 390 px and 320 px: no horizontal overflow; the 2×2 countdown grid, hotel-style range bands, day cells 46×46/40×40 and all tabs/controls are finger-sized. The picker, full month and day panel fit above the fixed action area.
 - All key text/background pairs pass 4.5:1 in both palettes; control borders are at least 3.16:1.
 - Screenshots: [`screenshots/`](screenshots/).
 
@@ -106,6 +106,6 @@ The canonical date is a `YYYY-MM-DD` string everywhere except inside `MonthCalen
 
 - Mobile-only by design: on a desktop it renders as a centred phone-width column.
 - TypeScript is pinned to 6.0.3 because this `svelte-check` release does not support TypeScript 7.
-- The JS bundle is about 15 KB gzip over the original 50 KB target.
+- The JS bundle is about 16 KB gzip over the original 50 KB target.
 - The UI is Lithuanian only; there is no language switch.
 - No notifications, sync or app lock, by decision.

@@ -2,6 +2,7 @@
   import { onMount } from 'svelte';
   import { app } from '../lib/store.svelte';
   import { diffDays, formatLongDay, weekdayName } from '../lib/date';
+  import { periodBlocks } from '../lib/periods';
   import { eventIcon } from '../lib/icon-names';
   import {
     MOODS,
@@ -17,7 +18,15 @@
   import BleedingControl from './BleedingControl.svelte';
   import Icon from './Icon.svelte';
 
-  let { date, onClose }: { date: DayKey; onClose: () => void } = $props();
+  let {
+    date,
+    onClose,
+    onEditRange,
+  }: {
+    date: DayKey;
+    onClose: () => void;
+    onEditRange: (start: DayKey, end: DayKey | null) => void;
+  } = $props();
 
   let panel = $state<HTMLElement>();
   let panelOpen = $state<null | 'symptom' | 'symptomOther' | 'mood' | 'intimacy' | 'note' | 'custom'>(
@@ -38,6 +47,11 @@
   const events = $derived(app.eventsForDay(date));
   const visibleEvents = $derived(events.filter((event) => event.kind !== 'period-day'));
   const active = $derived(app.activePeriod);
+  const periodBlock = $derived(
+    periodBlocks(app.events, app.today).find(
+      (block) => date >= block.start && date <= block.lastConfirmed,
+    ),
+  );
   const hasStart = $derived(app.hasEvent(date, 'period-start'));
   const covers = $derived(app.coversPeriod(date));
   const canBleed = $derived(Boolean(active && date >= active.start && date <= app.today));
@@ -232,6 +246,16 @@
             {COPY.period.finished}
           </button>
         {/if}
+      </div>
+    {/if}
+    {#if periodBlock && !future}
+      <div class="period-row">
+        <button
+          class="chip"
+          onclick={() => onEditRange(periodBlock.start, periodBlock.end ?? null)}
+        >
+          {COPY.calendar.editInterval}
+        </button>
       </div>
     {/if}
 

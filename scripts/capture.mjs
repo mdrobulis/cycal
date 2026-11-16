@@ -118,6 +118,13 @@ await openCalendar(page);
 await page.screenshot({ path: `${OUT}/calendar-light-390.png`, fullPage: true });
 report.calendar390 = await metrics(page);
 
+await page.getByRole('button', { name: 'Naujas mėnesinių intervalas' }).click();
+await page.locator(`.cal-day[data-value="${offsetKey(-5)}"]`).click();
+await page.locator(`.cal-day[data-value="${offsetKey(-3)}"]`).click();
+await page.screenshot({ path: `${OUT}/calendar-picker-390.png`, fullPage: true });
+await page.getByRole('button', { name: 'Atšaukti' }).click();
+await page.waitForTimeout(100);
+
 const dragFrom = offsetKey(-8);
 const dragTo = offsetKey(-4);
 const fromBox = await page.locator(`.cal-day[data-value="${dragFrom}"]`).boundingBox();
@@ -188,6 +195,10 @@ report.home320 = await metrics(narrowPage);
 await openCalendar(narrowPage);
 await narrowPage.screenshot({ path: `${OUT}/calendar-light-320.png`, fullPage: true });
 report.calendar320 = await metrics(narrowPage);
+await narrowPage.getByRole('button', { name: 'Naujas mėnesinių intervalas' }).click();
+await narrowPage.locator(`.cal-day[data-value="${offsetKey(-5)}"]`).click();
+await narrowPage.locator(`.cal-day[data-value="${offsetKey(-3)}"]`).click();
+await narrowPage.screenshot({ path: `${OUT}/calendar-picker-320.png`, fullPage: true });
 await narrow.close();
 
 await browser.close();
