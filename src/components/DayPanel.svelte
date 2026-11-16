@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { app } from '../lib/store.svelte';
-  import { diffDays, formatLongDay, weekdayName } from '../lib/date';
+  import { diffDays, formatDay, formatLongDay, formatRange, weekdayName } from '../lib/date';
   import { periodBlocks } from '../lib/periods';
   import { eventIcon } from '../lib/icon-names';
   import {
@@ -13,9 +13,10 @@
     eventLabel,
   } from '../lib/vocab';
   import { COPY } from '../lib/strings';
-  import type { DayEvent, DayKey, ProtectionValue, Severity } from '../lib/types';
+  import type { DayEvent, DayKey, PeriodBlock, ProtectionValue, Severity } from '../lib/types';
   import { MAX_OPEN_PERIOD_DAYS } from '../lib/periods';
   import BleedingControl from './BleedingControl.svelte';
+  import ConfirmDialog from './ConfirmDialog.svelte';
   import Icon from './Icon.svelte';
 
   let {
@@ -39,6 +40,7 @@
   let editDraft = $state('');
   let error = $state<string | null>(null);
   let busy = $state(false);
+  let deletingPeriod = $state<PeriodBlock | null>(null);
   let noteInput = $state<HTMLTextAreaElement>();
   let customInput = $state<HTMLInputElement>();
   let symptomInput = $state<HTMLInputElement>();
@@ -179,6 +181,40 @@
     error = null;
   }
 
+  function periodLabel(block: PeriodBlock): string {
+    return block.end ? formatRange(block.start, block.end) : formatDay(block.start);
+  }
+
+  function deleteEvent(event: DayEvent): void {
+    if (event.kind === 'period-start' || event.kind === 'period-end') {
+      const block = periodBlocks(app.events, app.today).find(
+        (candidate) => candidate.start === event.date || candidate.end === event.date,
+      );
+      if (block) {
+        deletingPeriod = block;
+        return;
+      }
+    }
+    void run(() => app.removeEvent(event.id));
+  }
+
+  async function confirmDeletePeriod(): Promise<void> {
+    const block = deletingPeriod;
+    if (!block || busy) return;
+    busy = true;
+    error = null;
+    try {
+      await app.deletePeriodRange(block.start);
+      deletingPeriod = null;
+      onClose();
+    } catch (cause) {
+      deletingPeriod = null;
+      error = cause instanceof Error ? cause.message : COPY.sheet.saveError;
+    } finally {
+      busy = false;
+    }
+  }
+
   function saveEdit(event: DayEvent): void {
     const value = editDraft.trim();
     if (!value) {
@@ -288,7 +324,7 @@
             <button
               class="icon-btn"
               aria-label={COPY.sheet.deleteAria(eventLabel(event))}
-              onclick={() => run(() => app.removeEvent(event.id))}
+              onclick={() => deleteEvent(event)}
             >
               <Icon name="trash" size={18} />
             </button>
@@ -436,6 +472,17 @@
     </div>
   </div>
 </section>
+
+<ConfirmDialog
+  open={Boolean(deletingPeriod)}
+  title={COPY.sheet.deletePeriodTitle}
+  message={deletingPeriod
+    ? COPY.sheet.deletePeriodMessage(periodLabel(deletingPeriod))
+    : ''}
+  confirmLabel={COPY.common.delete}
+  onConfirm={confirmDeletePeriod}
+  onCancel={() => (deletingPeriod = null)}
+/>
 
 <style>
   .day-panel {

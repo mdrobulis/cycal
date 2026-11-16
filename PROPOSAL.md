@@ -218,4 +218,6 @@ No IndexedDB, backup, settings, URL or QR changes. Verification: 95 unit tests, 
 
 `Mēnesinės` opens a draft picker on Calendar with a connected range band, dark start/end caps, `Pradžia`/`Pabaiga`, `Išsaugoti`, `Be pabaigos` and `Atšaukti`. Tap or drag the endpoints; the end can be moved by tapping a later day or dragging it, and nothing writes until Save. Existing periods expose `Keisti intervalą`. Open periods show only the start and confirmed days, never a speculative span through today; stale starts need an end. Direct drag and edge grips remain shortcuts.
 
-No IndexedDB, backup, settings, URL or QR changes. Verification: 95 unit tests, 26 browser flows, 65.8 KB gzip JS, 5.0 KB gzip CSS.
+Deleting a period start or end removes the whole interval and its flows after a confirmation, so no half-period remains.
+
+No IndexedDB, backup, settings, URL or QR changes. Verification: 95 unit tests, 27 browser flows, 66.0 KB gzip JS, 5.0 KB gzip CSS.

@@ -140,7 +140,7 @@ Settings live in IndexedDB `meta` and in the store; they are part of the JSON ba
 - The block is `start…end` when closed, or `start…last period-day` while open. Confirming after a gap fills the block — a period is continuous — and no confirmation means no invented days.
 - A period open for more than 10 days keeps its controls, labelled "Period still open — day N". It never silently ends or guesses.
 - Starting a new period on a later date closes the previous one at its last confirmed day.
-- Deleting the end reopens the period; deleting the start removes the block.
+- Deleting either the start or end row deletes the whole period record and its flows after confirmation.
 
 ### 4.3 Cycle math
 
@@ -468,4 +468,6 @@ The v1 mechanics, schema, URLs and QR stayed unchanged. This pass changed presen
 
 **Visual grammar.** Draft and saved periods share the same range band: accent-soft span, dark start/end caps, white endpoint text. The direct calendar drag and edge grips remain as shortcuts; taps open the day panel in normal mode. The picker uses the full calendar; `touch-action:none` remains on the grid.
 
-**Verification.** 95 unit tests in 8 files; 26 Playwright flows (picker 11–13 exact, end move, open save, direct/touch/adjacent month, edits, stale, flow trim, undo, existing flows); build **65.8 KB gzip JS**, 5.0 KB gzip CSS, 15 precached files (235 KiB). No IndexedDB, backup, settings, URL or QR changes. Real iOS safe-area/screen-reader behaviour and ICS import remain untested.
+**Deletion.** Deleting either the start or end row from the day panel opens a confirmation naming the interval; confirming calls the period-record delete, removing the start/end and all flow/period-day events in that interval. A half-period cannot be left behind.
+
+**Verification.** 95 unit tests in 8 files; 27 Playwright flows (picker 11–13 exact, end move, open save, direct/touch/adjacent month, edits, boundary deletion, stale, flow trim, undo, existing flows); build **66.0 KB gzip JS**, 5.0 KB gzip CSS, 15 precached files (236 KiB). No IndexedDB, backup, settings, URL or QR changes. Real iOS safe-area/screen-reader behaviour and ICS import remain untested.

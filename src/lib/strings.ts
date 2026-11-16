@@ -169,6 +169,9 @@ export const COPY = {
     futureNote: 'Ateities datoms mėnesinių žymėti negalima. Pastabas ir simptomus galima.',
     empty: 'Šią dieną įrašų nėra.',
     deleteAria: (label: string) => `Ištrinti ${label}`,
+    deletePeriodTitle: 'Ištrinti mėnesines?',
+    deletePeriodMessage: (range: string) =>
+      `Bus ištrintas visas intervalas ${range} ir jo kraujavimo įrašai.`,
     editAria: (label: string) => `Redaguoti ${label}`,
     severityAria: (label: string) => `Stiprumas: ${label}`,
     edit: 'Redaguoti',

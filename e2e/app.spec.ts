@@ -491,6 +491,47 @@ test('periodą galima sukurti ir šiandien', async ({ page }) => {
   await expect(page.locator('.active-period')).toHaveCount(0);
 });
 
+test('ištrynus pradžią arba pabaigą ištrinamas visas periodas', async ({ page }) => {
+  const errors = collectErrors(page);
+  await page.goto('/');
+  await openCalendar(page);
+  const start = offsetDayKey(-8);
+  const end = offsetDayKey(-4);
+  await dragDays(page, start, end);
+
+  await page.locator(`.cal-day[data-value="${offsetDayKey(-6)}"]`).click();
+  await page.locator('.day-panel').waitFor();
+  await page
+    .getByRole('group', { name: COPY.bleeding.aria })
+    .getByRole('button', { name: MEDIUM, exact: true })
+    .click();
+  await closePanel(page);
+
+  await page.locator(`.cal-day[data-value="${start}"]`).click();
+  await page
+    .locator('.day-panel')
+    .getByRole('button', { name: COPY.sheet.deleteAria(COPY.period.started) })
+    .click();
+  const confirm = page.getByRole('dialog', { name: COPY.sheet.deletePeriodTitle });
+  await expect(confirm).toBeVisible();
+  await confirm.getByRole('button', { name: COPY.common.delete }).click();
+  await expect(page.locator('.day-panel')).toHaveCount(0);
+  expect(await storedEvents(page)).toEqual([]);
+
+  await dragDays(page, start, end);
+  await page.locator(`.cal-day[data-value="${end}"]`).click();
+  await page
+    .locator('.day-panel')
+    .getByRole('button', { name: COPY.sheet.deleteAria(COPY.period.finished) })
+    .click();
+  const confirmEnd = page.getByRole('dialog', { name: COPY.sheet.deletePeriodTitle });
+  await expect(confirmEnd).toBeVisible();
+  await confirmEnd.getByRole('button', { name: COPY.common.delete }).click();
+  await expect(page.locator('.day-panel')).toHaveCount(0);
+  expect(await storedEvents(page)).toEqual([]);
+  expect(errors).toEqual([]);
+});
+
 test('periodo pradžią ir pabaigą galima tempti', async ({ page }) => {
   await page.goto('/');
   await openCalendar(page);
