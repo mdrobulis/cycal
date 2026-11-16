@@ -37,6 +37,16 @@ function tab(page: Page, which: 'today' | 'calendar') {
   return page.getByRole('tab', { name: COPY.tabs[which] });
 }
 
+async function startToday(page: Page): Promise<void> {
+  await page.getByRole('button', { name: COPY.app.startTodayAria }).click();
+}
+
+async function startRange(page: Page): Promise<void> {
+  await page.getByRole('button', { name: COPY.app.markPeriod, exact: true }).click();
+  await expect(tab(page, 'calendar')).toHaveAttribute('aria-selected', 'true');
+  await expect(page.locator('.range-bar')).toBeVisible();
+}
+
 async function openCalendar(page: Page): Promise<void> {
   await tab(page, 'calendar').click();
   await expect(page.locator('#calendar-panel')).toBeVisible();
@@ -82,7 +92,7 @@ test('pirmas paleidimas: vienas kraujavimo valdiklis ir dienos įrašai išlieka
   await expect(tab(page, 'today')).toHaveAttribute('aria-selected', 'true');
   await expect(page.locator('#calendar-panel')).toBeHidden();
 
-  await page.getByRole('button', { name: COPY.app.markPeriod }).click();
+  await startToday(page);
   await expect(page.getByText(COPY.period.day(1), { exact: true })).toBeVisible();
   await expect(page.locator('.count')).toHaveCount(4);
   await expect(page.locator('.count-value').first()).toContainText('28');
@@ -97,9 +107,13 @@ test('pirmas paleidimas: vienas kraujavimo valdiklis ir dienos įrašai išlieka
   await expect(page.getByRole('dialog')).toHaveCount(0);
   await expect(page.getByRole('group', { name: COPY.bleeding.aria })).toHaveCount(1);
 
-  const calendarBox = await page.locator('.calendar').boundingBox();
-  const panelBox = await page.locator('.day-panel').boundingBox();
-  expect(panelBox!.y).toBeGreaterThanOrEqual(calendarBox!.y + calendarBox!.height - 1);
+  await expect
+    .poll(async () => {
+      const calendarBox = await page.locator('.calendar').boundingBox();
+      const panelBox = await page.locator('.day-panel').boundingBox();
+      return panelBox!.y >= calendarBox!.y + calendarBox!.height - 1;
+    })
+    .toBe(true);
 
   const bleeding = page.getByRole('group', { name: COPY.bleeding.aria });
   await bleeding.getByRole('button', { name: MEDIUM, exact: true }).click();
@@ -298,8 +312,7 @@ test('intymumas turi apsaugos detalę', async ({ page }) => {
 test('intervalą galima pažymėti dviem bakstelėjimais', async ({ page }) => {
   const errors = collectErrors(page);
   await page.goto('/');
-  await openCalendar(page);
-  await page.getByRole('button', { name: COPY.range.action }).click();
+  await startRange(page);
   await expect(page.locator('.range-bar')).toBeVisible();
   await expect(page.locator('.range-hint')).toHaveText(COPY.range.start);
 
@@ -325,8 +338,7 @@ test('intervalą galima pažymėti dviem bakstelėjimais', async ({ page }) => {
 test('intervalą galima braukti vienu gestu', async ({ page }) => {
   const errors = collectErrors(page);
   await page.goto('/');
-  await openCalendar(page);
-  await page.getByRole('button', { name: COPY.range.action }).click();
+  await startRange(page);
 
   const start = offsetDayKey(-10);
   const end = offsetDayKey(-6);
@@ -355,8 +367,7 @@ test('intervalą galima braukti vienu gestu', async ({ page }) => {
 
 test('intervalo režimą galima atšaukti, o ateitis atmetama', async ({ page }) => {
   await page.goto('/');
-  await openCalendar(page);
-  await page.getByRole('button', { name: COPY.range.action }).click();
+  await startRange(page);
 
   const future = offsetDayKey(5);
   await page.locator(`.cal-day[data-value="${future}"]`).click();
@@ -372,8 +383,7 @@ test('intervalo režimą galima atšaukti, o ateitis atmetama', async ({ page })
 
 test('intervalą galima pasirinkti klaviatūra', async ({ page }) => {
   await page.goto('/');
-  await openCalendar(page);
-  await page.getByRole('button', { name: COPY.range.action }).click();
+  await startRange(page);
 
   const start = offsetDayKey(-10);
   const end = offsetDayKey(-6);
@@ -422,7 +432,7 @@ test('veikia neprisijungus po pirmo apsilankymo', async ({ page, context }) => {
 
 test('prognozių režimą galima pristabdyti, ir tai išlieka po perkrovimo', async ({ page }) => {
   await page.goto('/');
-  await page.getByRole('button', { name: COPY.app.markPeriod }).click();
+  await startToday(page);
   await page.getByRole('button', { name: COPY.period.ended, exact: true }).click();
   await page.getByRole('button', { name: COPY.common.settings }).click();
   await page.getByRole('button', { name: COPY.settings.modes.paused.label, exact: true }).click();
@@ -435,7 +445,7 @@ test('prognozių režimą galima pristabdyti, ir tai išlieka po perkrovimo', as
 
 test('eksportuoja prognozes į .ics failą', async ({ page }) => {
   await page.goto('/');
-  await page.getByRole('button', { name: COPY.app.markPeriod }).click();
+  await startToday(page);
   await page.getByRole('button', { name: COPY.common.settings }).click();
 
   const downloadPromise = page.waitForEvent('download');
@@ -453,7 +463,7 @@ test('eksportuoja prognozes į .ics failą', async ({ page }) => {
 
 test('intensyvumas pažymi kraujavimą, o „Baigėsi“ uždaro mėnesines', async ({ page }) => {
   await page.goto('/');
-  await page.getByRole('button', { name: COPY.app.markPeriod }).click();
+  await startToday(page);
   await expect(page.getByRole('button', { name: OLD_STILL })).toHaveCount(0);
   await page.getByRole('button', { name: COPY.bleeding.change }).click();
 
@@ -588,7 +598,7 @@ test('istoriją galima įrašyti, redaguoti ir ištrinti', async ({ page }) => {
 
 test('eksportuoja, ištrina ir atkuria atsarginę kopiją', async ({ page }) => {
   await page.goto('/');
-  await page.getByRole('button', { name: COPY.app.markPeriod }).click();
+  await startToday(page);
   await page.getByRole('button', { name: COPY.common.settings }).click();
 
   const downloadPromise = page.waitForEvent('download');

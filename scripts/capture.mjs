@@ -118,7 +118,7 @@ await openCalendar(page);
 await page.screenshot({ path: `${OUT}/calendar-light-390.png`, fullPage: true });
 report.calendar390 = await metrics(page);
 
-await page.getByRole('button', { name: 'Žymėti intervalą' }).click();
+await page.getByRole('button', { name: 'Pažymėti mėnesines' }).click();
 await page.locator(`.cal-day[data-value="${offsetKey(-2)}"]`).click();
 await page.screenshot({ path: `${OUT}/calendar-range-390.png`, fullPage: true });
 await page.locator('.range-bar').getByRole('button', { name: 'Atšaukti' }).click();
@@ -131,7 +131,7 @@ await page.screenshot({ path: `${OUT}/day-panel-390.png`, fullPage: true });
 await page.locator('.day-panel').getByRole('button', { name: 'Uždaryti' }).click();
 
 await page.getByRole('tab', { name: 'Šiandien' }).click();
-await page.getByRole('button', { name: 'Pažymėti mėnesines' }).click();
+await page.getByRole('button', { name: 'Pradėti mėnesines šiandien' }).click();
 await page.locator('.active-period').waitFor();
 await page.getByRole('button', { name: 'Keisti' }).click();
 await page.getByRole('group', { name: 'Kraujavimo intensyvumas' }).waitFor();

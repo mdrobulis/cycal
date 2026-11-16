@@ -21,14 +21,14 @@
     today,
     selectedDay,
     onSelectDay,
-    onClearSelection,
+    rangeMode = $bindable(false),
   }: {
     events: DayEvent[];
     stats: CycleStats;
     today: DayKey;
     selectedDay: DayKey | null;
     onSelectDay: (day: DayKey) => void;
-    onClearSelection: () => void;
+    rangeMode?: boolean;
   } = $props();
 
   const byDay = $derived.by(() => {
@@ -73,7 +73,6 @@
   );
 
   let calendarEl = $state<HTMLElement>();
-  let rangeMode = $state(false);
   let rangeStart = $state<DayKey | null>(null);
   let rangeEnd = $state<DayKey | null>(null);
   let rangeError = $state<string | null>(null);
@@ -100,6 +99,17 @@
 
   onDestroy(() => {
     if (statusTimer) clearTimeout(statusTimer);
+  });
+
+  $effect(() => {
+    if (!rangeMode) return;
+    rangeStart = null;
+    rangeEnd = null;
+    rangeError = null;
+    rangeStatus = null;
+    dragStart = null;
+    dragCurrent = null;
+    dragging = false;
   });
 
   $effect(() => {
@@ -141,18 +151,6 @@
       return;
     }
     onSelectDay(next.toString());
-  }
-
-  function enterRange(): void {
-    rangeMode = true;
-    rangeStart = null;
-    rangeEnd = null;
-    rangeError = null;
-    rangeStatus = null;
-    dragStart = null;
-    dragCurrent = null;
-    dragging = false;
-    onClearSelection();
   }
 
   function exitRange(): void {
@@ -405,10 +403,6 @@
         {#if rangeError}
           <p class="range-error" role="alert">{rangeError}</p>
         {/if}
-      {:else}
-        <div class="range-entry">
-          <button class="link-button" onclick={enterRange}>{COPY.range.action}</button>
-        </div>
       {/if}
 
       {#each months as month (month.value.toString())}

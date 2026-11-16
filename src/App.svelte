@@ -17,6 +17,7 @@
   let view = $state<View>('home');
   let homeTab = $state<HomeTab>('today');
   let selectedDay = $state<DayKey | null>(null);
+  let rangeMode = $state(false);
   let historyReturn = $state<'home' | 'settings'>('settings');
   let historyStartAdding = $state(false);
   let actionError = $state<string | null>(null);
@@ -41,6 +42,7 @@
   }
 
   function go(next: View): void {
+    if (next !== 'home') rangeMode = false;
     view = next;
     window.scrollTo({ top: 0 });
   }
@@ -53,6 +55,7 @@
 
   function selectTab(tab: HomeTab): void {
     if (homeTab === tab) return;
+    if (tab === 'today') rangeMode = false;
     homeTab = tab;
     window.scrollTo({ top: 0, behavior: reduceMotion() ? 'auto' : 'smooth' });
   }
@@ -97,6 +100,7 @@
 
   async function markToday(): Promise<void> {
     actionError = null;
+    rangeMode = false;
     try {
       const result = await app.markPeriodStart(app.today);
       if (result === 'exists') {
@@ -106,6 +110,14 @@
     } catch (cause) {
       actionError = cause instanceof Error ? cause.message : COPY.errors.save;
     }
+  }
+
+  function openPeriodRange(): void {
+    actionError = null;
+    selectedDay = null;
+    rangeMode = true;
+    homeTab = 'calendar';
+    window.scrollTo({ top: 0, behavior: reduceMotion() ? 'auto' : 'smooth' });
   }
 
   async function runAction(task: () => Promise<unknown>): Promise<void> {
@@ -199,7 +211,7 @@
           today={app.today}
           selectedDay={selectedDay}
           onSelectDay={(day) => (selectedDay = day)}
-          onClearSelection={() => (selectedDay = null)}
+          bind:rangeMode
         />
         {#if selectedDay}
           {#key selectedDay}
@@ -226,7 +238,14 @@
           onEnded={() => runAction(() => app.endActivePeriod(app.today))}
         />
       {:else}
-        <button class="primary" onclick={markToday}>{COPY.app.markPeriod}</button>
+        <div class="period-actions">
+          <button class="primary" onclick={openPeriodRange}>{COPY.app.markPeriod}</button>
+          <button
+            class="secondary"
+            aria-label={COPY.app.startTodayAria}
+            onclick={markToday}
+          >{COPY.app.startToday}</button>
+        </div>
       {/if}
     </div>
   </footer>

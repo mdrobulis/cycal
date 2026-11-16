@@ -33,6 +33,8 @@ export const COPY = {
   },
   app: {
     markPeriod: 'Pažymėti mėnesines',
+    startToday: 'Pradėti',
+    startTodayAria: 'Pradėti mėnesines šiandien',
     settingsAria: 'Nustatymai',
     privacy: 'Privatumas',
     privacyNote:
@@ -147,7 +149,6 @@ export const COPY = {
     change: 'Keisti',
   },
   range: {
-    action: 'Žymėti intervalą',
     start: 'Pasirink pradžią arba brauk',
     end: (date: string) => `Pradžia: ${date} · Pasirink pabaigą`,
     saved: (range: string) => `Mėnesinės įrašytos: ${range}`,

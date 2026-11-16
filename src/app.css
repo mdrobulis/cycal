@@ -322,6 +322,26 @@ textarea {
   gap: 8px;
 }
 
+.period-actions {
+  display: flex;
+  align-items: stretch;
+  gap: 8px;
+}
+
+.period-actions .primary {
+  flex: 1 1 auto;
+  padding-inline: 12px;
+  white-space: nowrap;
+}
+
+.period-actions .secondary {
+  flex: 0 0 auto;
+  min-height: 48px;
+  padding-inline: 12px;
+  font-size: 15px;
+  white-space: nowrap;
+}
+
 /* Month calendar */
 
 .calendar {
@@ -550,12 +570,6 @@ textarea {
 }
 
 /* Calendar range selection */
-
-.range-entry {
-  display: flex;
-  justify-content: flex-end;
-  margin: 2px 0 4px;
-}
 
 .range-bar {
   display: flex;

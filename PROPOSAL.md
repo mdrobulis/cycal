@@ -198,6 +198,6 @@ No IndexedDB, backup, settings, URL or QR changes. Verification: 82 unit tests, 
 
 ## 13. Period range entry — 16 Nov 2026
 
-Calendar now has an optional `Žymėti intervalą` mode. Tap a start and end, or press on a date and drag to another date, and the period is saved as a completed `period-start`/`period-end` range in one action. Taps continue to work through the normal calendar selection; drags use pointer events with delayed capture, a click guard and grid-only `touch-action:none`. Invalid future/overlap/order ranges reuse the existing validation errors and stay editable. Range mode does not set bleeding intensity; the day-panel control remains the single intensity entry.
+The primary `Pažymėti mėnesines` action opens Calendar range selection; `Pradėti` is the compact secondary action for a period that starts today. Tap a start and end, or press on a date and drag to another date, and the period is saved as a completed `period-start`/`period-end` range in one action. Taps continue to work through the normal calendar selection; drags use pointer events with delayed capture, a click guard and grid-only `touch-action:none`. Invalid future/overlap/order ranges reuse the existing validation errors and stay editable. Range mode does not set bleeding intensity; the day-panel control remains the single intensity entry.
 
-No IndexedDB, backup, settings, URL or QR changes. Verification: 89 unit tests, 17 browser flows, 64.0 KB gzip JS, 4.7 KB gzip CSS.
+No IndexedDB, backup, settings, URL or QR changes. Verification: 89 unit tests, 17 browser flows, 64.1 KB gzip JS, 4.8 KB gzip CSS.
