@@ -2,6 +2,14 @@
 
 A private, offline menstrual-cycle tracker. One person, one phone, no account, no server. All data stays in the browser's IndexedDB on the device.
 
+**Live:** [https://mdrobulis.github.io/cycal/](https://mdrobulis.github.io/cycal/)
+
+<p align="center">
+  <a href="https://mdrobulis.github.io/cycal/">
+    <img src="qr/cycal-install.png" alt="Scan to open Cycal" width="260" />
+  </a>
+</p>
+
 Built from [PROPOSAL.md](PROPOSAL.md); the decisions and build report live in [PLAN.md](PLAN.md).
 
 ## What it does
@@ -45,7 +53,7 @@ The nine flows cover first run and persistence, undo, still-bleeding/ended, keyb
 
 ## Install as a PWA
 
-The repo includes [`.github/workflows/deploy.yml`](.github/workflows/deploy.yml): a push to `main` builds with `VITE_BASE=/cycal/` and deploys `dist/` to GitHub Pages. Enable **Settings → Pages → Build and deployment → Source: GitHub Actions** once. The live URL is `https://<user>.github.io/cycal/`.
+The repo includes [`.github/workflows/deploy.yml`](.github/workflows/deploy.yml): a push to `main` builds with `VITE_BASE=/cycal/` and deploys `dist/` to GitHub Pages. The live URL is [https://mdrobulis.github.io/cycal/](https://mdrobulis.github.io/cycal/); the QR above opens it.
 
 To test the Pages build locally, build with the subpath and serve `dist/` under `/cycal/`:
 
@@ -53,7 +61,7 @@ To test the Pages build locally, build with the subpath and serve `dist/` under 
 VITE_BASE=/cycal/ pnpm build
 ```
 
-On iOS use Safari → Share → Add to Home Screen; on Android use Chrome's Install action. The page CSP is injected into the production build only, so `connect-src 'none'` applies to the shipped app while Vite's HMR still works in development. Notifications are not implemented: use the `.ics` export to put predicted dates in the phone's calendar.
+On iOS open the link in **Safari**, tap Share → **Add to Home Screen**, then Add. On Android open it in Chrome and choose **Install app** (or Add to Home screen). Open it once while online so the service worker can cache the app; after that it works offline. Notifications are not implemented: use the `.ics` export to put predicted dates in the phone's calendar.
 
 ## Privacy model
 
