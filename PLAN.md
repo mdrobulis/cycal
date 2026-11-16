@@ -11,6 +11,8 @@ Status: v4 · implemented and verified 16 Nov 2026
 > **Intimacy detail pass (16 Nov 2026):** intimacy records now carry a protected/unprotected detail, stored in the existing event value. See §15.
 >
 > **Period range pass (16 Nov 2026):** Calendar gains a tap-or-drag range mode that writes a completed period start/end in one go. See §16.
+>
+> **Direct period records (16 Nov 2026):** Calendar is now the period editor. Dragging start→end creates one record; edge grips correct start/end; open starts are recent-only; stale starts do not paint a span. The action-bar period buttons and range mode are gone. See §17.
 
 A local-only **Vite + Svelte 5 SPA PWA** for one person, with the month grid built on **Bits UI Calendar** and styled entirely from our own tokens. No account, no backend, no telemetry.
 
@@ -23,7 +25,7 @@ A local-only **Vite + Svelte 5 SPA PWA** for one person, with the month grid bui
 - **Visual style: quiet utility** — Rams restraint, warmed: paper neutrals, one accent, no decoration, honest states.
 - **Non-restrictive entry:** any past date, no minimum, month/year jump; future notes allowed, future period events blocked with copy; no forced sequences; everything editable.
 - **Dashboard six values:** cycle day, next period, fertile window, ovulation, PMS window, last period.
-- **Period logging is start + daily "still bleeding"**; the end is the last confirmed bleeding day.
+- **Period logging is one start/end interval**; bleed levels are optional per day, and an open start is active only while recent.
 - **Event types:** symptom (with severity), mood, flow, intimacy (protected/unprotected), note, custom label — plus period start/end.
 - **No forced onboarding.** Empty dashboard on first launch; history can be added at any time.
 - **Also in v1:** `.ics` prediction export, symptom severity, cycle history, irregular/paused prediction modes, manual cycle defaults, dark mode, backup nudge.
@@ -435,3 +437,20 @@ The v1 mechanics, schema, URLs and QR stayed unchanged. This pass changed presen
 **Validation.** Range mode uses the existing `addPeriodRange` action: future dates, overlaps, active-period ordering and range order are rejected with the existing Lithuanian errors; the range bar stays open for correction. The period is saved as `period-start` + `period-end` only; no flow/intensity is fabricated. The day-panel bleeding control remains the single intensity entry.
 
 **Verification.** 89 unit tests in 8 files; 17 Playwright flows (tap range from the primary action, drag range, keyboard range, cancel/future); build **64.1 KB gzip JS**, 4.8 KB gzip CSS, 15 precached files (228 KiB). Screenshots include the range hint/start preview. No IndexedDB, backup, settings, URL or QR changes. Real iOS safe-area/screen-reader behaviour and ICS import remain untested.
+
+
+## 17. Direct period records — 16 Nov 2026
+
+**Entry removed.** The Calendar no longer has a range mode or an action-bar `Pažymėti mėnesines` / `Pradėti` pair. With no active period there is no fixed bottom bar; the grid is the editor. A tap opens the day panel; a drag creates or corrects a period. Today is not special.
+
+**Create.** Pressing an empty visible day and dragging to another day previews a start–end interval; release writes one `period-start` + `period-end`. A tap opens the day panel instead. Future ends are refused. Adjacent-month days are selectable, so any visible date works.
+
+**Correct.** Recorded period start and end cells carry edge grips. Dragging the start moves the start; dragging the end moves the end or closes an open period. A one-day record uses direction: dragging later edits the end, earlier edits the start. Moving an open start beyond the 10-day freshness window is refused with “set an end first” guidance; moving it within the window stays open.
+
+**Open records.** A start-only period within 10 days is active and its displayed span is start…today. An open period older than 10 days is stale/incomplete: it shows only its start and explicitly confirmed days (never a speculative multi-week block), has no active card, and can be repaired by dragging its soft end or through History. Creating a new start-only period older than 10 days is refused; historical periods must use a closed drag or History.
+
+**One record + flows.** `periodBlocks(events, today)` is the single record: start, optional end, last confirmed day, open/active/stale, display end. `periodDisplayDays(events, today)` is the only visible-day set. `updatePeriodBounds` preserves flows and confirmations inside the edited interval, removes them outside, and delete removes the period's flows. A one-level period undo is offered in the drag status.
+
+**Gestures.** Pointer Events with delayed capture; taps route through the same pointer handler so adjacent-month days select consistently; a persistent capture-phase click guard suppresses synthetic clicks after drags. `touch-action:none` on the grid; page scrolling remains outside it.
+
+**Verification.** 95 unit tests in 8 files; 24 Playwright flows (direct mouse/touch create, adjacent month, start/end edits, open-end close, stale start, flow trim, undo, future, existing flows); build **64.6 KB gzip JS**, 4.8 KB gzip CSS, 15 precached files (230 KiB). No IndexedDB, backup, settings, URL or QR changes. Real iOS safe-area/screen-reader behaviour and ICS import remain untested.

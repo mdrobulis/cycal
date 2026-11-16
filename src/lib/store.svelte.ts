@@ -1,10 +1,11 @@
-import { addDays, todayKey } from './date';
+import { addDays, diffDays, todayKey } from './date';
 import { computeHistory, computeStats } from './cycle';
 import {
   endDateForActive,
   findActivePeriod,
+  MAX_OPEN_PERIOD_DAYS,
   periodBlocks,
-  periodCoversDate,
+  periodDisplayDays,
   periodRangeIssue,
   type PeriodRangeIssue,
 } from './periods';
@@ -75,6 +76,7 @@ class CycalStore {
   storageBlocked = $state(false);
   today = $state<DayKey>(todayKey());
   undo = $state<UndoState | null>(null);
+  periodUndo = $state<{ events: DayEvent[]; message: string } | null>(null);
 
   byDay = $derived.by(() => {
     const map = new Map<DayKey, DayEvent[]>();
@@ -91,6 +93,13 @@ class CycalStore {
   activePeriod = $derived(findActivePeriod(this.events, this.today));
 
   #undoTimer: ReturnType<typeof setTimeout> | null = null;
+
+  #snapshotPeriodUndo(message: string): void {
+    this.periodUndo = {
+      events: $state.snapshot(this.events) as DayEvent[],
+      message,
+    };
+  }
 
   async init(): Promise<void> {
     this.refreshToday();
@@ -123,7 +132,7 @@ class CycalStore {
   }
 
   coversPeriod(date: DayKey): boolean {
-    return periodCoversDate(this.events, date);
+    return periodDisplayDays(this.events, this.today).has(date);
   }
 
   async addEvent(input: NewEvent): Promise<DayEvent> {
@@ -174,6 +183,9 @@ class CycalStore {
 
   async markPeriodStart(date: DayKey): Promise<'created' | 'exists'> {
     if (date > this.today) throw new Error(COPY.errors.futureStart);
+    if (diffDays(date, this.today) > MAX_OPEN_PERIOD_DAYS) {
+      throw new Error(COPY.errors.periodOpenTooOld);
+    }
     if (this.hasEvent(date, 'period-start')) return 'exists';
 
     const active = this.activePeriod;
@@ -221,43 +233,83 @@ class CycalStore {
   async addPeriodRange(start: DayKey, end: DayKey): Promise<void> {
     const issue = periodRangeIssue(this.events, start, end, this.today);
     if (issue) throw periodRangeError(issue);
+    this.#snapshotPeriodUndo(COPY.calendar.created);
     this.#clearUndo();
     await this.addEvent({ kind: 'period-start', date: start });
     await this.addEvent({ kind: 'period-end', date: end });
   }
 
+  /**
+   * Move one period record's start and/or end. The interval is authoritative:
+   * flows and confirmations outside it are removed, while those inside are kept.
+   */
+  async updatePeriodBounds(
+    originalStart: DayKey,
+    start: DayKey,
+    end: DayKey | null,
+  ): Promise<void> {
+    const block = periodBlocks(this.events, this.today).find(
+      (candidate) => candidate.start === originalStart,
+    );
+    if (!block) throw new Error(COPY.errors.periodNotFound);
+    const issue = periodRangeIssue(this.events, start, end, this.today, originalStart);
+    if (issue) throw periodRangeError(issue);
+    if (end === null && diffDays(start, this.today) > MAX_OPEN_PERIOD_DAYS) {
+      throw new Error(COPY.errors.periodOpenTooOld);
+    }
+    this.#snapshotPeriodUndo(COPY.calendar.updated);
+    this.#clearUndo();
+    const oldDisplayEnd = block.displayEnd;
+    const remove = this.events.filter((event) => {
+      if (event.kind === 'period-start' && event.date === block.start) return true;
+      if (event.kind === 'period-end' && block.end && event.date === block.end) return true;
+      if (event.date < block.start || event.date > oldDisplayEnd) return false;
+      if (event.kind !== 'period-day' && event.kind !== 'flow') return false;
+      if (event.date < start) return true;
+      return end !== null && event.date > end;
+    });
+    for (const event of remove) await this.#removeSilent(event.id);
+    await this.addEvent({ kind: 'period-start', date: start });
+    if (end) await this.addEvent({ kind: 'period-end', date: end });
+  }
+
+  /** Kept for the History editor; both paths share one bounds implementation. */
   async updatePeriodRange(
     originalStart: DayKey,
     start: DayKey,
     end: DayKey | null,
   ): Promise<void> {
-    const block = periodBlocks(this.events).find((candidate) => candidate.start === originalStart);
-    if (!block) throw new Error(COPY.errors.periodNotFound);
-    const issue = periodRangeIssue(this.events, start, end, this.today, originalStart);
-    if (issue) throw periodRangeError(issue);
-    this.#clearUndo();
-    const oldEvents = this.events.filter(
-      (event) =>
-        isPeriodEvent(event.kind) &&
-        event.date >= block.start &&
-        event.date <= block.lastConfirmed,
-    );
-    for (const event of oldEvents) await this.#removeSilent(event.id);
-    await this.addEvent({ kind: 'period-start', date: start });
-    if (end) await this.addEvent({ kind: 'period-end', date: end });
+    await this.updatePeriodBounds(originalStart, start, end);
   }
 
   async deletePeriodRange(originalStart: DayKey): Promise<void> {
-    const block = periodBlocks(this.events).find((candidate) => candidate.start === originalStart);
+    const block = periodBlocks(this.events, this.today).find(
+      (candidate) => candidate.start === originalStart,
+    );
     if (!block) throw new Error(COPY.errors.periodNotFound);
     this.#clearUndo();
     const oldEvents = this.events.filter(
       (event) =>
-        isPeriodEvent(event.kind) &&
         event.date >= block.start &&
-        event.date <= block.lastConfirmed,
+        event.date <= block.displayEnd &&
+        (isPeriodEvent(event.kind) || event.kind === 'flow'),
     );
     for (const event of oldEvents) await this.#removeSilent(event.id);
+  }
+
+  async undoPeriodChange(): Promise<void> {
+    const state = this.periodUndo;
+    if (!state) return;
+    const before = $state.snapshot(state.events) as DayEvent[];
+    if (!this.storageBlocked) {
+      const beforeIds = new Set(before.map((event) => event.id));
+      for (const event of this.events) {
+        if (!beforeIds.has(event.id)) await db.deleteEvent(event.id);
+      }
+      for (const event of before) await db.putEvent(event);
+    }
+    this.events = sortEvents(before.map((event) => $state.snapshot(event) as DayEvent));
+    this.periodUndo = null;
   }
 
   async setMood(date: DayKey, value: number): Promise<void> {

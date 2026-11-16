@@ -43,7 +43,7 @@ export function computeStats(
   today: DayKey,
 ): CycleStats {
   const starts = periodStarts(events, today);
-  const blocks = periodBlocks(events).filter((block) => block.start <= today);
+  const blocks = periodBlocks(events, today).filter((block) => block.start <= today);
   const lastStart = starts[starts.length - 1];
   const lastPeriod = blocks[blocks.length - 1];
   const active = findActivePeriod(events, today);
@@ -146,7 +146,7 @@ export function computeHistory(
   limit = 12,
 ): HistoryCycle[] {
   const starts = periodStarts(events, today);
-  const blocks = periodBlocks(events);
+  const blocks = periodBlocks(events, today);
   return starts.slice(-limit).map((start, index, list) => {
     const next = list[index + 1];
     const block: PeriodBlock | undefined = blocks.find((candidate) => candidate.start === start);

@@ -55,7 +55,10 @@ export interface PeriodBlock {
   end?: DayKey;
   lastConfirmed: DayKey;
   length?: number;
+  open: boolean;
   active: boolean;
+  stale: boolean;
+  displayEnd: DayKey;
   hasConfirmations: boolean;
 }
 

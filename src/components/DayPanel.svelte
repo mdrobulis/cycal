@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { app } from '../lib/store.svelte';
-  import { formatLongDay, weekdayName } from '../lib/date';
+  import { diffDays, formatLongDay, weekdayName } from '../lib/date';
   import { eventIcon } from '../lib/icon-names';
   import {
     MOODS,
@@ -13,6 +13,7 @@
   } from '../lib/vocab';
   import { COPY } from '../lib/strings';
   import type { DayEvent, DayKey, ProtectionValue, Severity } from '../lib/types';
+  import { MAX_OPEN_PERIOD_DAYS } from '../lib/periods';
   import BleedingControl from './BleedingControl.svelte';
   import Icon from './Icon.svelte';
 
@@ -41,6 +42,13 @@
   const covers = $derived(app.coversPeriod(date));
   const canBleed = $derived(Boolean(active && date >= active.start && date <= app.today));
   const future = $derived(date > app.today);
+  const canStartOpen = $derived(
+    !future &&
+      !hasStart &&
+      !covers &&
+      !canBleed &&
+      diffDays(date, app.today) <= MAX_OPEN_PERIOD_DAYS,
+  );
   const intimacy = $derived(events.find((event) => event.kind === 'intimacy'));
   const currentProtection = $derived(intimacy?.value);
   const currentMood = $derived(events.find((event) => event.kind === 'mood'));
@@ -212,9 +220,9 @@
       </div>
     {/if}
 
-    {#if !future && ((!hasStart && !covers && !canBleed) || canBleed)}
+    {#if !future && (canStartOpen || canBleed)}
       <div class="period-row">
-        {#if !hasStart && !covers && !canBleed}
+        {#if canStartOpen}
           <button class="chip" onclick={() => run(() => app.markPeriodStart(date))}>
             {COPY.period.started}
           </button>

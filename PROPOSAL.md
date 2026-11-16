@@ -11,6 +11,8 @@ Proposal v0.1 · 13 Nov 2026 · implemented 16 Nov 2026 · single user, single d
 > **v3 UI pass (16 Nov 2026):** Today is a countdown board and bleeding uses one intensity control. See §12.
 >
 > **Period range pass (16 Nov 2026):** Calendar can record a completed period by tapping or dragging its start and end. See §13.
+>
+> **Direct period records (16 Nov 2026):** Calendar is the editor: drag start→end to create, drag edge grips to correct; open starts are recent-only and stale starts do not paint a span. See §14.
 
 **The job, in the user's words:** *"Check where I am in my cycle, and note what happened today."*
 
@@ -201,3 +203,10 @@ No IndexedDB, backup, settings, URL or QR changes. Verification: 82 unit tests, 
 The primary `Pažymėti mėnesines` action opens Calendar range selection; `Pradėti` is the compact secondary action for a period that starts today. Tap a start and end, or press on a date and drag to another date, and the period is saved as a completed `period-start`/`period-end` range in one action. Taps continue to work through the normal calendar selection; drags use pointer events with delayed capture, a click guard and grid-only `touch-action:none`. Invalid future/overlap/order ranges reuse the existing validation errors and stay editable. Range mode does not set bleeding intensity; the day-panel control remains the single intensity entry.
 
 No IndexedDB, backup, settings, URL or QR changes. Verification: 89 unit tests, 17 browser flows, 64.1 KB gzip JS, 4.8 KB gzip CSS.
+
+
+## 14. Direct period records — 16 Nov 2026
+
+The action-bar period buttons and range mode are gone. On Calendar, drag from a start day to an end day on any visible past-or-today date to create one period; a tap still opens the day panel. Start and end cells have edge grips: drag the start to move it, drag the end to move or close it; a one-day record uses drag direction. A recent start-only period is active and displayed through today; a start older than 10 days is incomplete, shows only confirmed days, and must be given an end. `touch-action:none` reserves the grid for dragging, with page scrolling outside it. Flows remain optional per period day; editing trims flows outside the interval, and a one-level undo is offered.
+
+No IndexedDB, backup, settings, URL or QR changes. Verification: 95 unit tests, 24 browser flows, 64.6 KB gzip JS, 4.8 KB gzip CSS.

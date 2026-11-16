@@ -1,6 +1,9 @@
 import { addDays, diffDays, isDayKey, rangeDays } from './date';
 import type { ActivePeriod, DayEvent, DayKey, PeriodBlock } from './types';
 
+/** A start-only period older than this is treated as incomplete, not active. */
+export const MAX_OPEN_PERIOD_DAYS = 10;
+
 function uniqueSorted(dates: DayKey[]): DayKey[] {
   return [...new Set(dates)].sort((a, b) => a.localeCompare(b));
 }
@@ -25,10 +28,11 @@ export function confirmedPeriodDays(events: DayEvent[]): DayKey[] {
 }
 
 /**
- * A period is a start plus every confirmed bleeding day, closed by an explicit
- * end. The end is the last bleeding day, so the block is start..end inclusive.
+ * One period record: a start, an optional explicit end, the last confirmed
+ * bleeding day, and whether the open record is still current. The block is the
+ * single source of truth used by the calendar, day panel and history.
  */
-export function periodBlocks(events: DayEvent[]): PeriodBlock[] {
+export function periodBlocks(events: DayEvent[], today: DayKey): PeriodBlock[] {
   const starts = periodStarts(events);
   const ends = periodEnds(events);
   const days = confirmedPeriodDays(events);
@@ -41,34 +45,63 @@ export function periodBlocks(events: DayEvent[]): PeriodBlock[] {
       (day) => day >= start && (!next || day < next) && (!end || day <= end),
     );
     const lastConfirmed = end ?? (blockDays.length ? blockDays[blockDays.length - 1]! : start);
-    const active = !end && index === starts.length - 1;
+    const open = !end;
+    const latest = index === starts.length - 1;
+    const age = diffDays(start, today);
+    const fresh = open && latest && start <= today && age <= MAX_OPEN_PERIOD_DAYS;
+    const active = fresh;
+    const stale = open && latest && start <= today && age > MAX_OPEN_PERIOD_DAYS;
+    const displayEnd = end ?? (active ? today : lastConfirmed);
     return {
       start,
       end,
       lastConfirmed,
       length: end ? diffDays(start, end) + 1 : undefined,
+      open,
       active,
+      stale,
+      displayEnd,
       hasConfirmations: blockDays.length > 0,
     };
   });
 }
 
-export function recordedPeriodDays(events: DayEvent[]): Set<DayKey> {
-  const days = new Set<DayKey>();
-  for (const block of periodBlocks(events)) {
-    for (const day of rangeDays(block.start, block.lastConfirmed)) days.add(day);
+/**
+ * Days that are visibly part of a period:
+ * - closed: start..end;
+ * - fresh open: start..today (the current record is ongoing);
+ * - stale/incomplete open: only the start and explicitly confirmed days, never
+ *   a speculative multi-week span.
+ */
+export function periodDisplayDays(events: DayEvent[], today: DayKey): Set<DayKey> {
+  const result = new Set<DayKey>();
+  const confirmed = new Set(confirmedPeriodDays(events));
+  for (const block of periodBlocks(events, today)) {
+    if (block.end) {
+      for (const day of rangeDays(block.start, block.end)) result.add(day);
+    } else if (block.active) {
+      for (const day of rangeDays(block.start, today)) result.add(day);
+    } else {
+      result.add(block.start);
+      for (const day of confirmed) {
+        if (day >= block.start && day <= block.lastConfirmed) result.add(day);
+      }
+    }
   }
-  return days;
+  return result;
 }
 
-export function periodCoversDate(events: DayEvent[], date: DayKey): boolean {
-  return periodBlocks(events).some(
-    (block) => date >= block.start && date <= block.lastConfirmed,
-  );
+/** Backwards-compatible name for the visible period day set. */
+export function recordedPeriodDays(events: DayEvent[], today: DayKey): Set<DayKey> {
+  return periodDisplayDays(events, today);
+}
+
+export function periodCoversDate(events: DayEvent[], date: DayKey, today: DayKey): boolean {
+  return periodDisplayDays(events, today).has(date);
 }
 
 export function findActivePeriod(events: DayEvent[], today: DayKey): ActivePeriod | null {
-  const blocks = periodBlocks(events).filter((block) => block.start <= today);
+  const blocks = periodBlocks(events, today).filter((block) => block.start <= today);
   const last = blocks[blocks.length - 1];
   if (!last || !last.active) return null;
   return {
@@ -89,7 +122,6 @@ export function endDateForActive(events: DayEvent[], today: DayKey): DayKey | nu
   if (active.hasConfirmations) return active.lastConfirmed;
   return active.start < today ? addDays(today, -1) : active.start;
 }
-
 
 export type PeriodRangeIssue =
   | 'invalid'
@@ -120,7 +152,7 @@ export function periodRangeIssue(
   if (end !== null && end < start) return 'backwards';
 
   const rangeEnd = end ?? start;
-  const blocks = periodBlocks(events).filter((block) => block.start !== ignoreStart);
+  const blocks = periodBlocks(events, today).filter((block) => block.start !== ignoreStart);
   const openBlock = blocks.find((block) => block.active);
   if (openBlock && start > openBlock.start) return 'openActive';
   for (const block of blocks) {

@@ -63,7 +63,10 @@
     if (stats.lastPeriod.end) {
       return formatRange(stats.lastPeriod.start, stats.lastPeriod.end);
     }
-    return `${formatDay(stats.lastPeriod.start)} · ${COPY.dashboard.subs.ongoing}`;
+    if (stats.lastPeriod.active) {
+      return `${formatDay(stats.lastPeriod.start)} · ${COPY.dashboard.subs.ongoing}`;
+    }
+    return formatDay(stats.lastPeriod.start);
   });
 
   const nextApprox = $derived(Boolean(stats.nextRange || stats.usingDefault));

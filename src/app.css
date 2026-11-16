@@ -124,7 +124,11 @@ textarea {
   max-width: 480px;
   margin: 0 auto;
   min-height: 100dvh;
-  padding: 0 20px calc(128px + var(--safe-bottom));
+  padding: 0 20px calc(24px + var(--safe-bottom));
+}
+
+.app.with-actionbar {
+  padding-bottom: calc(128px + var(--safe-bottom));
 }
 
 .topbar {
@@ -322,26 +326,6 @@ textarea {
   gap: 8px;
 }
 
-.period-actions {
-  display: flex;
-  align-items: stretch;
-  gap: 8px;
-}
-
-.period-actions .primary {
-  flex: 1 1 auto;
-  padding-inline: 12px;
-  white-space: nowrap;
-}
-
-.period-actions .secondary {
-  flex: 0 0 auto;
-  min-height: 48px;
-  padding-inline: 12px;
-  font-size: 15px;
-  white-space: nowrap;
-}
-
 /* Month calendar */
 
 .calendar {
@@ -450,6 +434,7 @@ textarea {
   width: 100%;
   border-collapse: collapse;
   table-layout: fixed;
+  touch-action: none;
 }
 
 .cal-grid th,
@@ -559,6 +544,92 @@ textarea {
   text-decoration: none;
 }
 
+.cal-hint {
+  margin: 4px 0 6px;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.cal-note {
+  margin: 0 0 6px;
+  color: var(--danger);
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.cal-cell.is-period-start .cal-day::before,
+.cal-cell.is-period-end .cal-day::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  width: 3px;
+  height: 14px;
+  margin-top: -7px;
+  border-radius: 999px;
+  background: var(--ink);
+  pointer-events: none;
+}
+
+.cal-cell.is-period-start .cal-day::before {
+  left: 2px;
+}
+
+.cal-cell.is-period-end .cal-day::after {
+  right: 2px;
+}
+
+.cal-cell.is-period.is-period-start .cal-day::before,
+.cal-cell.is-period.is-period-end .cal-day::after {
+  background: var(--on-period);
+}
+
+.cal-cell.is-period-incomplete .cal-day {
+  background: var(--hover);
+  color: var(--muted);
+  box-shadow: inset 0 0 0 2px var(--ink);
+}
+
+.cal-cell.is-period-incomplete .cal-day::before,
+.cal-cell.is-period-incomplete .cal-day::after {
+  background: var(--ink);
+}
+
+.cal-cell.is-drag-in .cal-day {
+  box-shadow: inset 0 0 0 1px var(--accent);
+}
+
+.cal-cell.is-drag-start .cal-day,
+.cal-cell.is-drag-end .cal-day {
+  box-shadow: inset 0 0 0 2px var(--accent);
+}
+
+.cal-cell.is-period.is-drag-in .cal-day,
+.cal-cell.is-period.is-drag-start .cal-day,
+.cal-cell.is-period.is-drag-end .cal-day {
+  box-shadow: inset 0 0 0 2px var(--on-period);
+}
+
+.drag-error {
+  margin: 6px 0 0;
+  color: var(--danger);
+  font-size: 13px;
+}
+
+.drag-status {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin: 6px 0 0;
+  color: var(--muted);
+  font-size: 12.5px;
+}
+
+.drag-status .link-button {
+  flex: 0 0 auto;
+}
+
 .cal-cell.is-ovulation .num {
   border-radius: 999px;
   outline: 2px solid var(--accent);
@@ -567,74 +638,6 @@ textarea {
 
 .cal-cell.is-period.is-ovulation .num {
   outline-color: var(--on-period);
-}
-
-/* Calendar range selection */
-
-.range-bar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  margin: 2px 0 4px;
-}
-
-.range-hint {
-  margin: 0;
-  color: var(--muted);
-  font-size: 13px;
-  line-height: 1.35;
-}
-
-.range-bar .link-button {
-  flex: 0 0 auto;
-}
-
-.range-error {
-  margin: 0 0 6px;
-  color: var(--danger);
-  font-size: 13px;
-}
-
-.range-status {
-  margin: 8px 0 0;
-  color: var(--muted);
-  font-size: 12.5px;
-}
-
-.calendar.range-mode .cal-grid {
-  touch-action: none;
-}
-
-.cal-cell.is-range-in .cal-day::after,
-.cal-cell.is-range-start .cal-day::after,
-.cal-cell.is-range-end .cal-day::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  border-radius: 999px;
-  pointer-events: none;
-}
-
-.cal-cell.is-range-in .cal-day::after {
-  border: 1px solid var(--ink);
-  opacity: 0.35;
-}
-
-.cal-cell.is-range-start .cal-day::after,
-.cal-cell.is-range-end .cal-day::after {
-  border: 2px solid var(--ink);
-}
-
-.cal-cell.is-period.is-range-in .cal-day::after {
-  border-color: var(--on-period);
-  opacity: 0.65;
-}
-
-.cal-cell.is-period.is-range-start .cal-day::after,
-.cal-cell.is-period.is-range-end .cal-day::after {
-  border-color: var(--on-period);
-  opacity: 1;
 }
 
 /* Dialogs and feedback */

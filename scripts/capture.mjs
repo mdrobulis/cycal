@@ -118,10 +118,18 @@ await openCalendar(page);
 await page.screenshot({ path: `${OUT}/calendar-light-390.png`, fullPage: true });
 report.calendar390 = await metrics(page);
 
-await page.getByRole('button', { name: 'Pažymėti mėnesines' }).click();
-await page.locator(`.cal-day[data-value="${offsetKey(-2)}"]`).click();
-await page.screenshot({ path: `${OUT}/calendar-range-390.png`, fullPage: true });
-await page.locator('.range-bar').getByRole('button', { name: 'Atšaukti' }).click();
+const dragFrom = offsetKey(-8);
+const dragTo = offsetKey(-4);
+const fromBox = await page.locator(`.cal-day[data-value="${dragFrom}"]`).boundingBox();
+const toBox = await page.locator(`.cal-day[data-value="${dragTo}"]`).boundingBox();
+await page.mouse.move(fromBox.x + fromBox.width / 2, fromBox.y + fromBox.height / 2);
+await page.mouse.down();
+await page.mouse.move(toBox.x + toBox.width / 2, toBox.y + toBox.height / 2, { steps: 8 });
+await page.mouse.up();
+await page.locator('.drag-status').waitFor();
+await page.screenshot({ path: `${OUT}/calendar-drag-390.png`, fullPage: true });
+await page.locator('.drag-status').getByRole('button', { name: 'Atšaukti' }).click();
+await page.waitForTimeout(100);
 
 await page.locator(`.cal-day[data-value="${offsetKey(-13)}"]`).click();
 await page.locator('.day-panel').waitFor();
@@ -130,8 +138,11 @@ await page.waitForTimeout(150);
 await page.screenshot({ path: `${OUT}/day-panel-390.png`, fullPage: true });
 await page.locator('.day-panel').getByRole('button', { name: 'Uždaryti' }).click();
 
+await page.locator('.cal-day[data-today]').click();
+await page.locator('.day-panel').waitFor();
+await page.getByRole('button', { name: 'Mėnesinės prasidėjo' }).click();
+await page.locator('.day-panel').getByRole('button', { name: 'Uždaryti' }).click();
 await page.getByRole('tab', { name: 'Šiandien' }).click();
-await page.getByRole('button', { name: 'Pradėti mėnesines šiandien' }).click();
 await page.locator('.active-period').waitFor();
 await page.getByRole('button', { name: 'Keisti' }).click();
 await page.getByRole('group', { name: 'Kraujavimo intensyvumas' }).waitFor();

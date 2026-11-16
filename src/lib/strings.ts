@@ -32,9 +32,6 @@ export const COPY = {
     calendar: 'Kalendorius',
   },
   app: {
-    markPeriod: 'Pažymėti mėnesines',
-    startToday: 'Pradėti',
-    startTodayAria: 'Pradėti mėnesines šiandien',
     settingsAria: 'Nustatymai',
     privacy: 'Privatumas',
     privacyNote:
@@ -131,6 +128,10 @@ export const COPY = {
       ovulation: 'Ovuliacija',
     },
     summaryAria: 'Mėnesio suvestinė',
+    dragHint: 'Brauk: pradžia → pabaiga',
+    created: 'Mėnesinės įrašytos',
+    updated: 'Intervalas atnaujintas',
+    needsEnd: 'Trūksta pabaigos',
     summary: {
       period: 'Mėnesinės',
       predicted: 'Prognozė',
@@ -147,11 +148,6 @@ export const COPY = {
     aria: 'Kraujavimo intensyvumas',
     unmarked: 'Nepažymėta',
     change: 'Keisti',
-  },
-  range: {
-    start: 'Pasirink pradžią arba brauk',
-    end: (date: string) => `Pradžia: ${date} · Pasirink pabaigą`,
-    saved: (range: string) => `Mėnesinės įrašytos: ${range}`,
   },
   period: {
     day: (days: number) =>
@@ -316,6 +312,7 @@ export const COPY = {
     periodOrder: 'Pradžia turi būti prieš kitas mėnesines.',
     periodActive: 'Pirmiausia užbaik dabartines mėnesines.',
     periodOpenNotLatest: 'Palik pabaigą tuščią tik dabartinėms mėnesinėms.',
+    periodOpenTooOld: 'Seniai pradėtoms mėnesinėms reikia pabaigos.',
     periodNotFound: 'Mėnesinės nerastos.',
     moodRange: 'Nuotaika turi būti nuo 1 iki 5.',
     flowOnlyPeriod: 'Kraujavimą galima žymėti tik mėnesinių dienomis.',

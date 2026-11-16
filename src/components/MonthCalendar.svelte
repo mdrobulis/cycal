@@ -7,12 +7,12 @@
     today as adtToday,
     type DateValue,
   } from '@internationalized/date';
-  import { formatDay, formatRange, isDayKey, rangeSet } from '../lib/date';
+  import { formatRange, isDayKey, rangeSet } from '../lib/date';
   import { EVENT_ICON, EVENT_ORDER, type UserEventKind } from '../lib/icon-names';
-  import { recordedPeriodDays } from '../lib/periods';
+  import { periodBlocks, periodDisplayDays } from '../lib/periods';
   import { app } from '../lib/store.svelte';
   import { COPY, ltCount } from '../lib/strings';
-  import type { CycleStats, DayEvent, DayKey } from '../lib/types';
+  import type { CycleStats, DayEvent, DayKey, PeriodBlock } from '../lib/types';
   import Icon from './Icon.svelte';
 
   let {
@@ -21,14 +21,14 @@
     today,
     selectedDay,
     onSelectDay,
-    rangeMode = $bindable(false),
+    onClearSelection,
   }: {
     events: DayEvent[];
     stats: CycleStats;
     today: DayKey;
     selectedDay: DayKey | null;
     onSelectDay: (day: DayKey) => void;
-    rangeMode?: boolean;
+    onClearSelection: () => void;
   } = $props();
 
   const byDay = $derived.by(() => {
@@ -41,7 +41,31 @@
     return map;
   });
 
-  const recorded = $derived(recordedPeriodDays(events));
+  const recorded = $derived(periodDisplayDays(events, today));
+  const blocks = $derived(periodBlocks(events, today));
+  const startEdges = $derived.by(() => {
+    const map = new Map<DayKey, PeriodBlock>();
+    for (const block of blocks) map.set(block.start, block);
+    return map;
+  });
+  const endEdges = $derived.by(() => {
+    const map = new Map<DayKey, PeriodBlock>();
+    for (const block of blocks) map.set(block.displayEnd, block);
+    return map;
+  });
+  const incomplete = $derived.by(() => {
+    const set = new Set<DayKey>();
+    for (const day of recorded) {
+      if (
+        blocks.some(
+          (block) => block.open && !block.active && day >= block.start && day <= block.lastConfirmed,
+        )
+      ) {
+        set.add(day);
+      }
+    }
+    return set;
+  });
   const predicted = $derived(stats.predictedPeriodDays);
   const fertile = $derived(rangeSet(stats.fertileRange));
 
@@ -73,43 +97,48 @@
   );
 
   let calendarEl = $state<HTMLElement>();
-  let rangeStart = $state<DayKey | null>(null);
-  let rangeEnd = $state<DayKey | null>(null);
-  let rangeError = $state<string | null>(null);
-  let rangeStatus = $state<string | null>(null);
-  let dragStart = $state<DayKey | null>(null);
-  let dragCurrent = $state<DayKey | null>(null);
-  let dragging = false;
+  let drag = $state<{
+    kind: 'create' | 'start' | 'end' | 'single';
+    anchor: DayKey;
+    current: DayKey;
+    blockStart?: DayKey;
+    blockEnd?: DayKey | null;
+    displayEnd?: DayKey;
+    open?: boolean;
+    originalStart?: DayKey;
+  } | null>(null);
   let dragMoved = false;
   let suppressClick = false;
   let pointerCaptured = false;
   let activePointerId: number | null = null;
+  let dragError = $state<string | null>(null);
+  let dragStatus = $state<string | null>(null);
   let statusTimer: ReturnType<typeof setTimeout> | undefined;
 
-  const rangePreview = $derived.by(() => {
-    const anchor = dragStart ?? rangeStart;
-    if (!anchor) return null;
-    const other = dragCurrent ?? rangeEnd ?? anchor;
-    return anchor <= other ? { from: anchor, to: other } : { from: other, to: anchor };
-  });
+  function normalise(a: DayKey, b: DayKey): { from: DayKey; to: DayKey } {
+    return a <= b ? { from: a, to: b } : { from: b, to: a };
+  }
 
-  const rangeHint = $derived(
-    rangeStart ? COPY.range.end(formatDay(rangeStart)) : COPY.range.start,
-  );
+  const dragPreview = $derived.by(() => {
+    if (!drag) return null;
+    const { kind, anchor, current } = drag;
+    if (kind === 'create') return normalise(anchor, current);
+    if (kind === 'start') {
+      return normalise(current, drag.blockEnd ?? drag.displayEnd ?? current);
+    }
+    if (kind === 'end') {
+      return normalise(drag.blockStart ?? current, current);
+    }
+    if (drag.open) {
+      return current >= anchor
+        ? normalise(anchor, current)
+        : normalise(current, drag.displayEnd ?? anchor);
+    }
+    return normalise(anchor, current);
+  });
 
   onDestroy(() => {
     if (statusTimer) clearTimeout(statusTimer);
-  });
-
-  $effect(() => {
-    if (!rangeMode) return;
-    rangeStart = null;
-    rangeEnd = null;
-    rangeError = null;
-    rangeStatus = null;
-    dragStart = null;
-    dragCurrent = null;
-    dragging = false;
   });
 
   $effect(() => {
@@ -146,72 +175,24 @@
 
   function handleValueChange(next: DateValue | DateValue[] | undefined): void {
     if (Array.isArray(next) || !next) return;
-    if (rangeMode) {
-      selectRangeDay(next.toString());
-      return;
-    }
     onSelectDay(next.toString());
   }
 
-  function exitRange(): void {
-    rangeMode = false;
-    rangeStart = null;
-    rangeEnd = null;
-    rangeError = null;
-    dragStart = null;
-    dragCurrent = null;
-    dragging = false;
-  }
-
-  function showRangeStatus(text: string): void {
-    rangeStatus = text;
+  function showStatus(text: string): void {
+    dragStatus = text;
     if (statusTimer) clearTimeout(statusTimer);
     statusTimer = setTimeout(() => {
-      rangeStatus = null;
+      dragStatus = null;
       statusTimer = undefined;
     }, 6000);
   }
 
-  function selectRangeDay(day: DayKey): void {
-    if (day > today) {
-      rangeError = COPY.errors.futureStart;
-      return;
-    }
-    rangeError = null;
-    if (!rangeStart) {
-      rangeStart = day;
-      rangeEnd = null;
-      return;
-    }
-    const from = rangeStart <= day ? rangeStart : day;
-    const to = rangeStart <= day ? day : rangeStart;
-    rangeStart = from;
-    rangeEnd = to;
-    void commitRange(from, to);
-  }
-
-  async function commitRange(from: DayKey, to: DayKey): Promise<void> {
-    if (to > today) {
-      rangeError = COPY.errors.futureEnd;
-      rangeEnd = null;
-      return;
-    }
-    rangeError = null;
-    try {
-      await app.addPeriodRange(from, to);
-      rangeMode = false;
-      rangeStart = null;
-      rangeEnd = null;
-      dragStart = null;
-      dragCurrent = null;
-      showRangeStatus(COPY.range.saved(formatRange(from, to)));
-    } catch (cause) {
-      rangeError = cause instanceof Error ? cause.message : COPY.errors.save;
-      rangeStart = from;
-      rangeEnd = null;
-      dragStart = null;
-      dragCurrent = null;
-    }
+  async function undoPeriod(): Promise<void> {
+    await app.undoPeriodChange();
+    dragStatus = null;
+    dragError = null;
+    if (statusTimer) clearTimeout(statusTimer);
+    statusTimer = undefined;
   }
 
   function dayFromTarget(target: EventTarget | null): DayKey | null {
@@ -228,29 +209,60 @@
   }
 
   function onPointerDown(event: PointerEvent): void {
-    if (!rangeMode) return;
     if (event.pointerType === 'mouse' && event.button !== 0) return;
     const day = dayFromTarget(event.target);
-    if (!day) return;
-    if (day > today) {
-      rangeError = COPY.errors.futureStart;
-      return;
-    }
-    rangeError = null;
-    dragStart = day;
-    dragCurrent = day;
-    dragging = true;
+    if (!day || day > today) return;
+
+    const startBlock = startEdges.get(day);
+    const endBlock = endEdges.get(day);
+    dragError = null;
     dragMoved = false;
+
+    if (startBlock && endBlock && startBlock.start === endBlock.start) {
+      drag = {
+        kind: 'single',
+        anchor: day,
+        current: day,
+        blockStart: startBlock.start,
+        blockEnd: startBlock.end ?? null,
+        displayEnd: startBlock.displayEnd,
+        open: startBlock.open,
+        originalStart: startBlock.start,
+      };
+    } else if (startBlock) {
+      drag = {
+        kind: 'start',
+        anchor: day,
+        current: day,
+        blockStart: startBlock.start,
+        blockEnd: startBlock.end ?? null,
+        displayEnd: startBlock.displayEnd,
+        open: startBlock.open,
+        originalStart: startBlock.start,
+      };
+    } else if (endBlock) {
+      drag = {
+        kind: 'end',
+        anchor: day,
+        current: day,
+        blockStart: endBlock.start,
+        blockEnd: endBlock.end ?? null,
+        displayEnd: endBlock.displayEnd,
+        open: endBlock.open,
+        originalStart: endBlock.start,
+      };
+    } else if (!recorded.has(day)) {
+      drag = { kind: 'create', anchor: day, current: day };
+    }
     pointerCaptured = false;
     activePointerId = event.pointerId;
   }
 
   function onPointerMove(event: PointerEvent): void {
-    if (!rangeMode || !dragging) return;
+    if (!drag) return;
     const day = dayFromPoint(event.clientX, event.clientY);
     if (!day) return;
-    if (day > today) return;
-    if (!pointerCaptured) {
+    if (!pointerCaptured && day !== drag.anchor) {
       try {
         calendarEl?.setPointerCapture(event.pointerId);
         pointerCaptured = true;
@@ -258,18 +270,20 @@
         // Pointer capture is optional; pointermove still reaches the section.
       }
     }
-    if (day !== dragStart) dragMoved = true;
-    dragCurrent = day;
+    if (day !== drag.anchor) {
+      if (!dragMoved) onClearSelection();
+      dragMoved = true;
+    }
+    if (day !== drag.current) drag = { ...drag, current: day };
   }
 
   function onPointerUp(event: PointerEvent): void {
-    if (!rangeMode || !dragging) return;
+    if (!drag) return;
+    const state = drag;
     const moved = dragMoved;
-    const from = dragStart;
-    const to = dragCurrent;
-    dragging = false;
-    dragStart = null;
-    dragCurrent = null;
+    const releaseDay = dayFromPoint(event.clientX, event.clientY);
+    drag = null;
+    dragMoved = false;
     if (pointerCaptured && activePointerId !== null) {
       try {
         if (calendarEl?.hasPointerCapture(activePointerId)) {
@@ -281,16 +295,65 @@
     }
     pointerCaptured = false;
     activePointerId = null;
-    if (!moved || !from || !to) return;
-    const start = from <= to ? from : to;
-    const end = from <= to ? to : from;
-    rangeStart = start;
-    rangeEnd = end;
+
+    if (!moved) {
+      if (releaseDay && releaseDay === state.anchor) {
+        suppressClick = true;
+        setTimeout(() => {
+          suppressClick = false;
+        }, 500);
+        onSelectDay(releaseDay);
+      }
+      return;
+    }
+    if (!releaseDay || releaseDay === state.anchor) return;
+
     suppressClick = true;
     setTimeout(() => {
       suppressClick = false;
     }, 500);
-    void commitRange(start, end);
+
+    let start: DayKey;
+    let end: DayKey | null;
+    if (state.kind === 'create') {
+      const range = normalise(state.anchor, releaseDay);
+      start = range.from;
+      end = range.to;
+    } else if (state.kind === 'start') {
+      start = releaseDay;
+      end = state.blockEnd ?? null;
+    } else if (state.kind === 'end') {
+      start = state.blockStart!;
+      end = releaseDay;
+    } else if (state.open) {
+      if (releaseDay >= state.anchor) {
+        start = state.anchor;
+        end = releaseDay;
+      } else {
+        start = releaseDay;
+        end = null;
+      }
+    } else {
+      const range = normalise(state.anchor, releaseDay);
+      start = range.from;
+      end = range.to;
+    }
+
+    void (async () => {
+      try {
+        if (state.kind === 'create') {
+          await app.addPeriodRange(start, end!);
+          showStatus(`${COPY.calendar.created}: ${formatRange(start, end!)}`);
+        } else {
+          await app.updatePeriodBounds(state.originalStart!, start, end);
+          showStatus(
+            `${COPY.calendar.updated}: ${formatRange(start, end ?? state.displayEnd ?? start)}`,
+          );
+        }
+      } catch (cause) {
+        dragError = cause instanceof Error ? cause.message : COPY.errors.save;
+      }
+    })();
   }
 
   function onPointerCancel(): void {
@@ -303,9 +366,8 @@
         // Capture can be lost when the pointer leaves the document.
       }
     }
-    dragging = false;
-    dragStart = null;
-    dragCurrent = null;
+    drag = null;
+    dragMoved = false;
     pointerCaptured = false;
     activePointerId = null;
   }
@@ -337,10 +399,13 @@
     else if (predicted.has(day)) classes.push('is-predicted');
     if (fertile.has(day) && !recorded.has(day)) classes.push('is-fertile');
     if (stats.ovulation === day) classes.push('is-ovulation');
-    if (rangeMode && rangePreview) {
-      if (day >= rangePreview.from && day <= rangePreview.to) classes.push('is-range-in');
-      if (day === rangePreview.from) classes.push('is-range-start');
-      if (day === rangePreview.to) classes.push('is-range-end');
+    if (startEdges.has(day)) classes.push('is-period-start');
+    if (endEdges.has(day)) classes.push('is-period-end');
+    if (incomplete.has(day)) classes.push('is-period-incomplete');
+    if (dragPreview) {
+      if (day >= dragPreview.from && day <= dragPreview.to) classes.push('is-drag-in');
+      if (day === dragPreview.from) classes.push('is-drag-start');
+      if (day === dragPreview.to) classes.push('is-drag-end');
     }
     return classes.join(' ');
   }
@@ -354,12 +419,7 @@
   }
 </script>
 
-<section
-  class="calendar"
-  class:range-mode={rangeMode}
-  bind:this={calendarEl}
-  aria-label={COPY.calendar.sectionAria}
->
+<section class="calendar" bind:this={calendarEl} aria-label={COPY.calendar.sectionAria}>
   <Calendar.Root
     type="single"
     {value}
@@ -368,6 +428,7 @@
     weekStartsOn={1}
     weekdayFormat="short"
     fixedWeeks
+    disableDaysOutsideMonth={false}
     locale="lt-LT"
     calendarLabel={COPY.calendar.label}
     initialFocus={false}
@@ -395,14 +456,9 @@
         </button>
       </Calendar.Header>
 
-      {#if rangeMode}
-        <div class="range-bar">
-          <p class="range-hint" role="status" aria-live="polite">{rangeHint}</p>
-          <button class="link-button" onclick={exitRange}>{COPY.common.cancel}</button>
-        </div>
-        {#if rangeError}
-          <p class="range-error" role="alert">{rangeError}</p>
-        {/if}
+      <p class="cal-hint">{COPY.calendar.dragHint}</p>
+      {#if incomplete.size > 0}
+        <p class="cal-note">{COPY.calendar.needsEnd}</p>
       {/if}
 
       {#each months as month (month.value.toString())}
@@ -448,8 +504,16 @@
     {/snippet}
   </Calendar.Root>
 
-  {#if rangeStatus}
-    <p class="range-status" role="status">{rangeStatus}</p>
+  {#if dragError}
+    <p class="drag-error" role="alert">{dragError}</p>
+  {/if}
+  {#if dragStatus}
+    <div class="drag-status" role="status">
+      <span>{dragStatus}</span>
+      {#if app.periodUndo}
+        <button class="link-button" onclick={undoPeriod}>{COPY.common.undo}</button>
+      {/if}
+    </div>
   {/if}
 
   {#if showLegend}

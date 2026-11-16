@@ -17,7 +17,6 @@
   let view = $state<View>('home');
   let homeTab = $state<HomeTab>('today');
   let selectedDay = $state<DayKey | null>(null);
-  let rangeMode = $state(false);
   let historyReturn = $state<'home' | 'settings'>('settings');
   let historyStartAdding = $state(false);
   let actionError = $state<string | null>(null);
@@ -42,7 +41,6 @@
   }
 
   function go(next: View): void {
-    if (next !== 'home') rangeMode = false;
     view = next;
     window.scrollTo({ top: 0 });
   }
@@ -55,7 +53,6 @@
 
   function selectTab(tab: HomeTab): void {
     if (homeTab === tab) return;
-    if (tab === 'today') rangeMode = false;
     homeTab = tab;
     window.scrollTo({ top: 0, behavior: reduceMotion() ? 'auto' : 'smooth' });
   }
@@ -98,28 +95,6 @@
       .catch((cause) => console.error('Could not record the export time', cause));
   }
 
-  async function markToday(): Promise<void> {
-    actionError = null;
-    rangeMode = false;
-    try {
-      const result = await app.markPeriodStart(app.today);
-      if (result === 'exists') {
-        homeTab = 'calendar';
-        selectedDay = app.today;
-      }
-    } catch (cause) {
-      actionError = cause instanceof Error ? cause.message : COPY.errors.save;
-    }
-  }
-
-  function openPeriodRange(): void {
-    actionError = null;
-    selectedDay = null;
-    rangeMode = true;
-    homeTab = 'calendar';
-    window.scrollTo({ top: 0, behavior: reduceMotion() ? 'auto' : 'smooth' });
-  }
-
   async function runAction(task: () => Promise<unknown>): Promise<void> {
     actionError = null;
     try {
@@ -130,7 +105,7 @@
   }
 </script>
 
-<div class="app">
+<div class="app" class:with-actionbar={Boolean(app.activePeriod)}>
   {#if view === 'home'}
     <header class="topbar">
       <h1 class="wordmark">Cycal</h1>
@@ -211,7 +186,7 @@
           today={app.today}
           selectedDay={selectedDay}
           onSelectDay={(day) => (selectedDay = day)}
-          bind:rangeMode
+          onClearSelection={() => (selectedDay = null)}
         />
         {#if selectedDay}
           {#key selectedDay}
@@ -227,26 +202,15 @@
   </main>
 </div>
 
-{#if app.ready && view === 'home'}
+{#if app.ready && view === 'home' && app.activePeriod}
   <footer class="actionbar">
     <div class="actionbar-inner">
-      {#if app.activePeriod}
-        <ActivePeriodCard
-          period={app.activePeriod}
-          flow={app.flowForDay(app.today)}
-          onChange={openTodayBleeding}
-          onEnded={() => runAction(() => app.endActivePeriod(app.today))}
-        />
-      {:else}
-        <div class="period-actions">
-          <button class="primary" onclick={openPeriodRange}>{COPY.app.markPeriod}</button>
-          <button
-            class="secondary"
-            aria-label={COPY.app.startTodayAria}
-            onclick={markToday}
-          >{COPY.app.startToday}</button>
-        </div>
-      {/if}
+      <ActivePeriodCard
+        period={app.activePeriod}
+        flow={app.flowForDay(app.today)}
+        onChange={openTodayBleeding}
+        onEnded={() => runAction(() => app.endActivePeriod(app.today))}
+      />
     </div>
   </footer>
 {/if}

@@ -1,5 +1,6 @@
 import { readFile } from 'node:fs/promises';
 import { expect, test, type Page } from '@playwright/test';
+import { formatRange } from '../src/lib/date';
 import { COPY, ltCount } from '../src/lib/strings';
 import { FLOWS, PROTECTIONS, SYMPTOMS } from '../src/lib/vocab';
 
@@ -37,14 +38,36 @@ function tab(page: Page, which: 'today' | 'calendar') {
   return page.getByRole('tab', { name: COPY.tabs[which] });
 }
 
-async function startToday(page: Page): Promise<void> {
-  await page.getByRole('button', { name: COPY.app.startTodayAria }).click();
+async function openPeriodToday(page: Page): Promise<void> {
+  await openCalendar(page);
+  await page.locator('.cal-day[data-today]').click();
+  await page.locator('.day-panel').waitFor();
+  await page
+    .locator('.day-panel')
+    .getByRole('button', { name: COPY.period.started })
+    .click();
+  await closePanel(page);
+  await tab(page, 'today').click();
 }
 
-async function startRange(page: Page): Promise<void> {
-  await page.getByRole('button', { name: COPY.app.markPeriod, exact: true }).click();
-  await expect(tab(page, 'calendar')).toHaveAttribute('aria-selected', 'true');
-  await expect(page.locator('.range-bar')).toBeVisible();
+async function dragDays(
+  page: Page,
+  start: string,
+  end: string,
+  expectStatus = true,
+): Promise<void> {
+  const startCell = page.locator(`.cal-day[data-value="${start}"]`);
+  const endCell = page.locator(`.cal-day[data-value="${end}"]`);
+  await startCell.scrollIntoViewIfNeeded();
+  const from = await startCell.boundingBox();
+  const to = await endCell.boundingBox();
+  expect(from).not.toBeNull();
+  expect(to).not.toBeNull();
+  await page.mouse.move(from!.x + from!.width / 2, from!.y + from!.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(to!.x + to!.width / 2, to!.y + to!.height / 2, { steps: 8 });
+  await page.mouse.up();
+  if (expectStatus) await expect(page.locator('.drag-status')).toBeVisible();
 }
 
 async function openCalendar(page: Page): Promise<void> {
@@ -92,7 +115,7 @@ test('pirmas paleidimas: vienas kraujavimo valdiklis ir dienos įrašai išlieka
   await expect(tab(page, 'today')).toHaveAttribute('aria-selected', 'true');
   await expect(page.locator('#calendar-panel')).toBeHidden();
 
-  await startToday(page);
+  await openPeriodToday(page);
   await expect(page.getByText(COPY.period.day(1), { exact: true })).toBeVisible();
   await expect(page.locator('.count')).toHaveCount(4);
   await expect(page.locator('.count-value').first()).toContainText('28');
@@ -309,22 +332,17 @@ test('intymumas turi apsaugos detalę', async ({ page }) => {
   expect(errors).toEqual([]);
 });
 
-test('intervalą galima pažymėti dviem bakstelėjimais', async ({ page }) => {
+test('periodas kuriamas braukiant kalendoriuje', async ({ page }) => {
   const errors = collectErrors(page);
   await page.goto('/');
-  await startRange(page);
-  await expect(page.locator('.range-bar')).toBeVisible();
-  await expect(page.locator('.range-hint')).toHaveText(COPY.range.start);
+  expect(await page.locator('.actionbar').count()).toBe(0);
+  await openCalendar(page);
+  await expect(page.locator('.cal-hint')).toHaveText(COPY.calendar.dragHint);
 
   const start = offsetDayKey(-10);
   const end = offsetDayKey(-6);
-  await page.locator(`.cal-day[data-value="${start}"]`).click();
-  await expect(page.locator('.cal-cell.is-range-start .cal-day')).toHaveCount(1);
-  await expect(page.locator('.range-hint')).toContainText('Pradžia:');
-
-  await page.locator(`.cal-day[data-value="${end}"]`).click();
-  await expect(page.locator('.range-status')).toContainText('Mėnesinės įrašytos:');
-  await expect(page.locator('.range-bar')).toHaveCount(0);
+  await dragDays(page, start, end);
+  await expect(page.locator('.drag-status')).toContainText(COPY.calendar.created);
   await expect(page.locator('.day-panel')).toHaveCount(0);
 
   const events = await storedEvents(page);
@@ -335,11 +353,22 @@ test('intervalą galima pažymėti dviem bakstelėjimais', async ({ page }) => {
   expect(errors).toEqual([]);
 });
 
-test('intervalą galima braukti vienu gestu', async ({ page }) => {
-  const errors = collectErrors(page);
+test('periodą galima braukti ir matomomis gretimo mėnesio dienomis', async ({ page }) => {
   await page.goto('/');
-  await startRange(page);
+  await openCalendar(page);
+  const start = offsetDayKey(-21);
+  const end = offsetDayKey(-17);
+  await dragDays(page, start, end);
+  const events = await storedEvents(page);
+  expect(events.some((event) => event.date === start && event.kind === 'period-start')).toBe(
+    true,
+  );
+  expect(events.some((event) => event.date === end && event.kind === 'period-end')).toBe(true);
+});
 
+test('periodą galima braukti prisilietimu', async ({ page }) => {
+  await page.goto('/');
+  await openCalendar(page);
   const start = offsetDayKey(-10);
   const end = offsetDayKey(-6);
   const startCell = page.locator(`.cal-day[data-value="${start}"]`);
@@ -347,52 +376,191 @@ test('intervalą galima braukti vienu gestu', async ({ page }) => {
   await startCell.scrollIntoViewIfNeeded();
   const from = await startCell.boundingBox();
   const to = await endCell.boundingBox();
-  expect(from).not.toBeNull();
-  expect(to).not.toBeNull();
-
-  await page.mouse.move(from!.x + from!.width / 2, from!.y + from!.height / 2);
-  await page.mouse.down();
-  await page.mouse.move(to!.x + to!.width / 2, to!.y + to!.height / 2, { steps: 8 });
-  await page.mouse.up();
-
-  await expect(page.locator('.range-status')).toContainText('Mėnesinės įrašytos:');
-  await expect(page.locator('.day-panel')).toHaveCount(0);
+  const client = await page.context().newCDPSession(page);
+  const point = (x: number, y: number) => ({
+    x,
+    y,
+    radiusX: 1,
+    radiusY: 1,
+    force: 1,
+    id: 1,
+  });
+  await client.send('Input.dispatchTouchEvent', {
+    type: 'touchStart',
+    touchPoints: [point(from!.x + from!.width / 2, from!.y + from!.height / 2)],
+  });
+  for (let index = 1; index <= 8; index += 1) {
+    await client.send('Input.dispatchTouchEvent', {
+      type: 'touchMove',
+      touchPoints: [
+        point(
+          from!.x + from!.width / 2 + ((to!.x - from!.x) * index) / 8,
+          from!.y + from!.height / 2 + ((to!.y - from!.y) * index) / 8,
+        ),
+      ],
+    });
+  }
+  await client.send('Input.dispatchTouchEvent', {
+    type: 'touchEnd',
+    touchPoints: [],
+  });
+  await expect(page.locator('.drag-status')).toContainText(COPY.calendar.created);
   const events = await storedEvents(page);
   expect(events.some((event) => event.date === start && event.kind === 'period-start')).toBe(
     true,
   );
   expect(events.some((event) => event.date === end && event.kind === 'period-end')).toBe(true);
-  expect(errors).toEqual([]);
 });
 
-test('intervalo režimą galima atšaukti, o ateitis atmetama', async ({ page }) => {
+test('susiaurinus periodą pašalinamas išorinis kraujavimas', async ({ page }) => {
   await page.goto('/');
-  await startRange(page);
+  await openCalendar(page);
+  const start = offsetDayKey(-10);
+  const end = offsetDayKey(-6);
+  await dragDays(page, start, end);
 
-  const future = offsetDayKey(5);
-  await page.locator(`.cal-day[data-value="${future}"]`).click();
-  await expect(page.locator('.range-error')).toContainText(COPY.errors.futureStart);
-  await expect(page.locator('.range-bar')).toBeVisible();
+  await page.locator(`.cal-day[data-value="${end}"]`).click();
+  await page.locator('.day-panel').waitFor();
   await page
-    .locator('.range-bar')
-    .getByRole('button', { name: COPY.common.cancel })
+    .getByRole('group', { name: COPY.bleeding.aria })
+    .getByRole('button', { name: MEDIUM, exact: true })
     .click();
-  await expect(page.locator('.range-bar')).toHaveCount(0);
+  await closePanel(page);
+
+  await dragDays(page, end, offsetDayKey(-8));
+  await expect(page.locator('.drag-status')).toContainText(formatRange(start, offsetDayKey(-8)));
+  const events = await storedEvents(page);
+  expect(events.some((event) => event.date === end && event.kind === 'flow')).toBe(false);
+});
+
+test('periodą galima sukurti ir šiandien', async ({ page }) => {
+  await page.goto('/');
+  await openCalendar(page);
+  const start = offsetDayKey(-2);
+  const end = currentDayKey();
+  await dragDays(page, start, end);
+  const events = await storedEvents(page);
+  expect(events.some((event) => event.date === start && event.kind === 'period-start')).toBe(
+    true,
+  );
+  expect(events.some((event) => event.date === end && event.kind === 'period-end')).toBe(true);
+  await expect(page.locator('.active-period')).toHaveCount(0);
+});
+
+test('periodo pradžią ir pabaigą galima tempti', async ({ page }) => {
+  await page.goto('/');
+  await openCalendar(page);
+  const start = offsetDayKey(-10);
+  const end = offsetDayKey(-6);
+  await dragDays(page, start, end);
+
+  const newStart = offsetDayKey(-12);
+  await dragDays(page, start, newStart);
+  await expect(page.locator('.drag-status')).toContainText(COPY.calendar.updated);
+  let events = await storedEvents(page);
+  expect(
+    events.some((event) => event.date === newStart && event.kind === 'period-start'),
+  ).toBe(true);
+  expect(events.some((event) => event.date === start && event.kind === 'period-start')).toBe(
+    false,
+  );
+
+  const newEnd = offsetDayKey(-4);
+  await dragDays(page, end, newEnd);
+  await expect(page.locator('.drag-status')).toContainText(formatRange(newStart, newEnd));
+  events = await storedEvents(page);
+  expect(events.some((event) => event.date === newEnd && event.kind === 'period-end')).toBe(
+    true,
+  );
+  expect(events.some((event) => event.date === end && event.kind === 'period-end')).toBe(false);
+});
+
+test('atvirą periodą galima uždaryti tempus jo galą', async ({ page }) => {
+  await page.goto('/');
+  await openCalendar(page);
+  const start = offsetDayKey(-3);
+  await page.locator(`.cal-day[data-value="${start}"]`).click();
+  await page.locator('.day-panel').waitFor();
+  await page.getByRole('button', { name: COPY.period.started }).click();
+  await closePanel(page);
+  await expect(page.locator('.active-period')).toBeVisible();
+
+  const end = offsetDayKey(-1);
+  await dragDays(page, currentDayKey(), end);
+  await expect(page.locator('.active-period')).toHaveCount(0);
+  const events = await storedEvents(page);
+  expect(events.some((event) => event.date === start && event.kind === 'period-start')).toBe(
+    true,
+  );
+  expect(events.some((event) => event.date === end && event.kind === 'period-end')).toBe(true);
+});
+
+test('bakstelėjimas atidaro dieną, o ne kuria periodą', async ({ page }) => {
+  await page.goto('/');
+  await openCalendar(page);
+  const day = offsetDayKey(-8);
+  await page.locator(`.cal-day[data-value="${day}"]`).click();
+  await expect(page.locator('.day-panel')).toBeVisible();
+  expect(await storedEvents(page)).toEqual([]);
+  await closePanel(page);
+});
+
+test('ateities intervalas parodo klaidą ir nieko neįrašo', async ({ page }) => {
+  await page.goto('/');
+  await openCalendar(page);
+  const start = offsetDayKey(-2);
+  const end = offsetDayKey(2);
+  await dragDays(page, start, end, false);
+  await expect(page.locator('.drag-error')).toContainText(COPY.errors.periodEndFuture);
   expect(await storedEvents(page)).toEqual([]);
 });
 
-test('intervalą galima pasirinkti klaviatūra', async ({ page }) => {
+test('periodo įrašą galima atšaukti', async ({ page }) => {
   await page.goto('/');
-  await startRange(page);
+  await openCalendar(page);
+  await dragDays(page, offsetDayKey(-10), offsetDayKey(-6));
+  await page.getByRole('button', { name: COPY.common.undo }).click();
+  await expect(page.locator('.drag-status')).toHaveCount(0);
+  expect(await storedEvents(page)).toEqual([]);
+});
 
-  const start = offsetDayKey(-10);
-  const end = offsetDayKey(-6);
-  await page.locator(`.cal-day[data-value="${start}"]`).focus();
-  await page.keyboard.press('Enter');
-  await expect(page.locator('.range-hint')).toContainText('Pradžia:');
-  await page.locator(`.cal-day[data-value="${end}"]`).focus();
-  await page.keyboard.press('Enter');
-  await expect(page.locator('.range-status')).toContainText('Mėnesinės įrašytos:');
+test('senas startas be pabaigos nėra aktyvus ir neapima savaitės', async ({ page }) => {
+  const old = offsetDayKey(-21);
+  await page.goto('/');
+  await page.evaluate(async (date) => {
+    const db = await new Promise<IDBDatabase>((resolve, reject) => {
+      const request = indexedDB.open('cycal');
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error);
+    });
+    const transaction = db.transaction('events', 'readwrite');
+    transaction.objectStore('events').put({
+      id: 'seed-stale-period',
+      date,
+      kind: 'period-start',
+      createdAt: new Date().toISOString(),
+    });
+    await new Promise((resolve, reject) => {
+      transaction.oncomplete = () => resolve();
+      transaction.onerror = () => reject(transaction.error);
+    });
+    db.close();
+  }, old);
+  await page.reload();
+  await openCalendar(page);
+  await expect(page.locator('.active-period')).toHaveCount(0);
+  await expect(page.locator('.cal-cell.is-period')).toHaveCount(1);
+  await expect(page.locator('.cal-cell.is-period-incomplete')).toHaveCount(1);
+  await expect(page.locator('.cal-note')).toContainText(COPY.calendar.needsEnd);
+
+  await page.locator(`.cal-day[data-value="${old}"]`).click();
+  await expect(page.locator('.day-panel')).toBeVisible();
+  await expect(
+    page.locator('.day-panel').getByRole('button', {
+      name: COPY.period.started,
+      exact: true,
+    }),
+  ).toHaveCount(0);
 });
 
 test('turi griežtą CSP ir neįkelia nieko iš išorės', async ({ page }) => {
@@ -432,7 +600,7 @@ test('veikia neprisijungus po pirmo apsilankymo', async ({ page, context }) => {
 
 test('prognozių režimą galima pristabdyti, ir tai išlieka po perkrovimo', async ({ page }) => {
   await page.goto('/');
-  await startToday(page);
+  await openPeriodToday(page);
   await page.getByRole('button', { name: COPY.period.ended, exact: true }).click();
   await page.getByRole('button', { name: COPY.common.settings }).click();
   await page.getByRole('button', { name: COPY.settings.modes.paused.label, exact: true }).click();
@@ -445,7 +613,7 @@ test('prognozių režimą galima pristabdyti, ir tai išlieka po perkrovimo', as
 
 test('eksportuoja prognozes į .ics failą', async ({ page }) => {
   await page.goto('/');
-  await startToday(page);
+  await openPeriodToday(page);
   await page.getByRole('button', { name: COPY.common.settings }).click();
 
   const downloadPromise = page.waitForEvent('download');
@@ -463,7 +631,7 @@ test('eksportuoja prognozes į .ics failą', async ({ page }) => {
 
 test('intensyvumas pažymi kraujavimą, o „Baigėsi“ uždaro mėnesines', async ({ page }) => {
   await page.goto('/');
-  await startToday(page);
+  await openPeriodToday(page);
   await expect(page.getByRole('button', { name: OLD_STILL })).toHaveCount(0);
   await page.getByRole('button', { name: COPY.bleeding.change }).click();
 
@@ -475,7 +643,7 @@ test('intensyvumas pažymi kraujavimą, o „Baigėsi“ uždaro mėnesines', as
   await expect(page.locator('.event-detail')).toHaveText(HEAVY);
 
   await page.getByRole('button', { name: COPY.period.ended, exact: true }).click();
-  await expect(page.getByRole('button', { name: COPY.app.markPeriod })).toBeVisible();
+  await expect(page.locator('.actionbar')).toHaveCount(0);
   await expect(page.locator('.event-detail')).toHaveText(HEAVY);
 });
 
@@ -506,11 +674,10 @@ test('leidžia įrašyti praeityje ir neleidžia mėnesinių ateityje', async ({
 
   await year.selectOption({ label: '2024' });
   await month.selectOption({ index: 9 });
-  await tab(page, 'today').click();
-  await tab(page, 'calendar').click();
+  await dragDays(page, '2024-10-15', '2024-10-19');
+
   await page.locator('.cal-day[data-value="2024-10-15"]').click();
   await expect(page.locator('.day-panel')).toBeVisible();
-  await page.getByRole('button', { name: COPY.period.started }).click();
   const bleeding = page.getByRole('group', { name: COPY.bleeding.aria });
   await bleeding.getByRole('button', { name: LIGHT, exact: true }).click();
   await expect(
@@ -538,6 +705,9 @@ test('leidžia įrašyti praeityje ir neleidžia mėnesinių ateityje', async ({
   });
   expect(
     stored.some((event) => event.date === '2024-10-15' && event.kind === 'period-start'),
+  ).toBe(true);
+  expect(
+    stored.some((event) => event.date === '2024-10-19' && event.kind === 'period-end'),
   ).toBe(true);
   expect(
     stored.some(
@@ -598,7 +768,7 @@ test('istoriją galima įrašyti, redaguoti ir ištrinti', async ({ page }) => {
 
 test('eksportuoja, ištrina ir atkuria atsarginę kopiją', async ({ page }) => {
   await page.goto('/');
-  await startToday(page);
+  await openPeriodToday(page);
   await page.getByRole('button', { name: COPY.common.settings }).click();
 
   const downloadPromise = page.waitForEvent('download');
