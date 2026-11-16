@@ -66,12 +66,19 @@ async function seed(page) {
     db.close();
   }, events);
   await page.reload();
-  await page.locator('.cal-day').first().waitFor();
+  await page.getByRole('tab', { name: 'Šiandien' }).waitFor();
+}
+
+async function openCalendar(page) {
+  await page.getByRole('tab', { name: 'Kalendorius' }).click();
+  await page.locator('.calendar').waitFor();
 }
 
 async function metrics(page) {
   return page.evaluate(() => {
-    const day = document.querySelector('.cal-day');
+    const day = [...document.querySelectorAll('.cal-day')].find(
+      (element) => element.getBoundingClientRect().width > 0,
+    );
     const box = day ? day.getBoundingClientRect() : null;
     const buttons = [...document.querySelectorAll('button')];
     const small = buttons
@@ -107,15 +114,21 @@ await seed(page);
 await page.screenshot({ path: `${OUT}/home-light-390.png`, fullPage: true });
 report.home390 = await metrics(page);
 
+await openCalendar(page);
+await page.screenshot({ path: `${OUT}/calendar-light-390.png`, fullPage: true });
+report.calendar390 = await metrics(page);
+
 await page.locator(`.cal-day[data-value="${offsetKey(-2)}"]`).click();
-await page.getByRole('dialog').waitFor();
+await page.locator('.day-panel').waitFor();
+await page.evaluate(() => window.scrollTo({ top: 0 }));
 await page.waitForTimeout(150);
-await page.screenshot({ path: `${OUT}/day-sheet-390.png` });
-await page.getByRole('button', { name: 'Gerai' }).click();
+await page.screenshot({ path: `${OUT}/day-panel-390.png`, fullPage: true });
+await page.locator('.day-panel').getByRole('button', { name: 'Uždaryti' }).click();
 
 await page.getByRole('button', { name: 'Nustatymai' }).click();
 await page.screenshot({ path: `${OUT}/settings-390.png`, fullPage: true });
 await page.getByRole('button', { name: 'Ciklų istorija' }).click();
+await page.getByRole('button', { name: 'Pridėti', exact: true }).click();
 await page.screenshot({ path: `${OUT}/history-390.png`, fullPage: true });
 report.errors = errors;
 await light.close();
@@ -129,6 +142,9 @@ const darkPage = await dark.newPage();
 await seed(darkPage);
 await darkPage.screenshot({ path: `${OUT}/home-dark-390.png`, fullPage: true });
 report.homeDark390 = await metrics(darkPage);
+await openCalendar(darkPage);
+await darkPage.screenshot({ path: `${OUT}/calendar-dark-390.png`, fullPage: true });
+report.calendarDark390 = await metrics(darkPage);
 await dark.close();
 
 const narrow = await browser.newContext({
@@ -140,6 +156,9 @@ const narrowPage = await narrow.newPage();
 await seed(narrowPage);
 await narrowPage.screenshot({ path: `${OUT}/home-light-320.png`, fullPage: true });
 report.home320 = await metrics(narrowPage);
+await openCalendar(narrowPage);
+await narrowPage.screenshot({ path: `${OUT}/calendar-light-320.png`, fullPage: true });
+report.calendar320 = await metrics(narrowPage);
 await narrow.close();
 
 await browser.close();

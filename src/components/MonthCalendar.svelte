@@ -6,9 +6,10 @@
     today as adtToday,
     type DateValue,
   } from '@internationalized/date';
-  import { dayRanges, formatDay, formatRange, rangeSet } from '../lib/date';
+  import { rangeSet } from '../lib/date';
+  import { EVENT_ICON, EVENT_ORDER, type UserEventKind } from '../lib/icon-names';
   import { recordedPeriodDays } from '../lib/periods';
-  import { COPY } from '../lib/strings';
+  import { COPY, ltCount } from '../lib/strings';
   import type { CycleStats, DayEvent, DayKey } from '../lib/types';
   import Icon from './Icon.svelte';
 
@@ -49,44 +50,48 @@
     `${placeholder.year}-${String(placeholder.month).padStart(2, '0')}`,
   );
 
-  const recordedText = $derived(
-    dayRanges(recorded, visiblePrefix)
-      .map((range) => formatRange(range.from, range.to))
-      .join(' · '),
-  );
-  const predictedText = $derived(
-    dayRanges(predicted, visiblePrefix)
-      .map((range) => formatRange(range.from, range.to))
-      .join(' · '),
-  );
-  const fertileText = $derived(
-    dayRanges(fertile, visiblePrefix)
-      .map((range) => formatRange(range.from, range.to))
-      .join(' · '),
-  );
-  const ovulation = $derived(
-    stats.ovulation?.startsWith(visiblePrefix) ? stats.ovulation : undefined,
-  );
-  const loggedCount = $derived.by(() => {
-    let count = 0;
+  const hasRecorded = $derived([...recorded].some((day) => day.startsWith(visiblePrefix)));
+  const hasPredicted = $derived([...predicted].some((day) => day.startsWith(visiblePrefix)));
+  const hasFertile = $derived([...fertile].some((day) => day.startsWith(visiblePrefix)));
+  const hasOvulation = $derived(Boolean(stats.ovulation?.startsWith(visiblePrefix)));
+  const legendKinds = $derived.by(() => {
+    const found = new Set<UserEventKind>();
     for (const [day, list] of byDay) {
       if (!day.startsWith(visiblePrefix)) continue;
-      count += list.filter(
-        (event) =>
-          event.kind !== 'period-start' &&
-          event.kind !== 'period-day' &&
-          event.kind !== 'period-end',
-      ).length;
+      for (const event of list) {
+        if (event.kind in EVENT_ICON) found.add(event.kind as UserEventKind);
+      }
     }
-    return count;
+    return EVENT_ORDER.filter((kind) => found.has(kind));
   });
-  const hasMarks = $derived(
-    Boolean(recordedText || predictedText || fertileText || ovulation || loggedCount),
+  const showLegend = $derived(
+    hasRecorded || hasPredicted || hasFertile || hasOvulation || legendKinds.length > 0,
   );
 
   function handleValueChange(next: DateValue | DateValue[] | undefined): void {
     if (Array.isArray(next) || !next) return;
     onSelectDay(next.toString());
+  }
+
+  function eventKinds(day: DayKey): UserEventKind[] {
+    const list = byDay.get(day);
+    if (!list) return [];
+    const found = new Set<UserEventKind>();
+    for (const event of list) {
+      if (event.kind in EVENT_ICON) found.add(event.kind as UserEventKind);
+    }
+    return EVENT_ORDER.filter((kind) => found.has(kind));
+  }
+
+  function eventCount(day: DayKey): number {
+    const list = byDay.get(day);
+    if (!list) return 0;
+    return list.filter(
+      (event) =>
+        event.kind !== 'period-start' &&
+        event.kind !== 'period-day' &&
+        event.kind !== 'period-end',
+    ).length;
   }
 
   function cellClass(day: DayKey): string {
@@ -96,20 +101,6 @@
     if (fertile.has(day) && !recorded.has(day)) classes.push('is-fertile');
     if (stats.ovulation === day) classes.push('is-ovulation');
     return classes.join(' ');
-  }
-
-  function dotCount(day: DayKey): number {
-    const list = byDay.get(day);
-    if (!list) return 0;
-    return Math.min(
-      3,
-      list.filter(
-        (event) =>
-          event.kind !== 'period-start' &&
-          event.kind !== 'period-day' &&
-          event.kind !== 'period-end',
-      ).length,
-    );
   }
 
   function shiftMonth(delta: number): void {
@@ -157,68 +148,6 @@
         </button>
       </Calendar.Header>
 
-      <div class="cal-summary" aria-label={COPY.calendar.summaryAria}>
-        {#if stats.paused}
-          <p class="summary-note">{COPY.calendar.summary.paused}</p>
-        {:else if stats.irregular}
-          <p class="summary-note">{COPY.calendar.summary.irregular}</p>
-        {/if}
-
-        {#if recordedText}
-          <div class="item">
-            <i class="swatch period" aria-hidden="true"></i>
-            <span class="snippet">
-              <span class="summary-label">{COPY.calendar.summary.period}</span>
-              <span class="summary-when"> {recordedText}</span>
-            </span>
-          </div>
-        {/if}
-
-        {#if predictedText}
-          <div class="item">
-            <i class="swatch predicted" aria-hidden="true"></i>
-            <span class="snippet">
-              <span class="summary-label">{COPY.calendar.summary.predicted}</span>
-              <span class="summary-when"> {predictedText}</span>
-            </span>
-          </div>
-        {/if}
-
-        {#if fertileText}
-          <div class="item">
-            <i class="swatch fertile" aria-hidden="true"></i>
-            <span class="snippet">
-              <span class="summary-label">{COPY.calendar.summary.fertile}</span>
-              <span class="summary-when"> {fertileText}</span>
-            </span>
-          </div>
-        {/if}
-
-        {#if ovulation}
-          <div class="item">
-            <i class="swatch ovulation" aria-hidden="true"></i>
-            <span class="snippet">
-              <span class="summary-label">{COPY.calendar.summary.ovulation}</span>
-              <span class="summary-when"> {formatDay(ovulation)}</span>
-            </span>
-          </div>
-        {/if}
-
-        {#if loggedCount > 0}
-          <div class="item">
-            <i class="swatch logged" aria-hidden="true"></i>
-            <span class="snippet">
-              <span class="summary-label">{COPY.calendar.summary.logged}:</span>
-              <span class="summary-when"> {loggedCount}</span>
-            </span>
-          </div>
-        {/if}
-
-        {#if !hasMarks && !stats.paused && !stats.irregular}
-          <p class="summary-note">{COPY.calendar.summary.noMarks}</p>
-        {/if}
-      </div>
-
       {#each months as month (month.value.toString())}
         <Calendar.Grid class="cal-grid">
           <Calendar.GridHead>
@@ -233,16 +162,23 @@
               <Calendar.GridRow>
                 {#each week as date (date.toString())}
                   {@const key = date.toString()}
-                  {@const dots = dotCount(key)}
+                  {@const kinds = eventKinds(key)}
+                  {@const visibleKinds = kinds.slice(0, 3)}
+                  {@const overflow = kinds.length > visibleKinds.length}
+                  {@const count = eventCount(key)}
                   <Calendar.Cell {date} month={month.value} class={cellClass(key)}>
                     <Calendar.Day class="cal-day">
                       <span class="num">{date.day}</span>
-                      {#if dots > 0}
-                        <span class="dots" aria-hidden="true">
-                          {#each Array(dots) as _, dotIndex (dotIndex)}
-                            <i class="dot"></i>
+                      {#if visibleKinds.length > 0}
+                        <span class="event-icons" aria-hidden="true">
+                          {#each visibleKinds as kind (kind)}
+                            <Icon name={EVENT_ICON[kind]} size={11} strokeWidth={2.1} />
                           {/each}
+                          {#if overflow}<i class="more"></i>{/if}
                         </span>
+                      {/if}
+                      {#if count > 0}
+                        <span class="sr-only">{ltCount(count, 'įrašas', 'įrašai', 'įrašų')}</span>
                       {/if}
                     </Calendar.Day>
                   </Calendar.Cell>
@@ -254,4 +190,27 @@
       {/each}
     {/snippet}
   </Calendar.Root>
+
+  {#if showLegend}
+    <div class="cal-legend" aria-label={COPY.calendar.legendAria}>
+      {#if hasRecorded}
+        <span class="legend-item"><i class="swatch period"></i>{COPY.calendar.legend.period}</span>
+      {/if}
+      {#if hasPredicted}
+        <span class="legend-item"><i class="swatch predicted"></i>{COPY.calendar.legend.predicted}</span>
+      {/if}
+      {#if hasFertile}
+        <span class="legend-item"><i class="swatch fertile"></i>{COPY.calendar.legend.fertile}</span>
+      {/if}
+      {#if hasOvulation}
+        <span class="legend-item"><i class="swatch ovulation"></i>{COPY.calendar.legend.ovulation}</span>
+      {/if}
+      {#each legendKinds as kind (kind)}
+        <span class="legend-item">
+          <Icon name={EVENT_ICON[kind]} size={14} />
+          {COPY.sheet[kind]}
+        </span>
+      {/each}
+    </div>
+  {/if}
 </section>

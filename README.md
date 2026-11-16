@@ -14,10 +14,12 @@ Built from [PROPOSAL.md](PROPOSAL.md); the decisions and build report live in [P
 
 ## What it does
 
-- **Dashboard:** cycle day, next period, fertile window, ovulation, PMS window, last period.
+- **Tabs:** `Šiandien` and `Kalendorius` switch in one tap; the tab bar stays reachable while scrolling.
+- **Today:** a quiet glance at cycle day and phase, a thin cycle bar, next period, fertile window, ovulation, PMS and last period. No prose status lines.
 - **Period logging:** mark a start, confirm "still bleeding" on later days, end it when it stops. A period can be entered on any past day.
-- **Calendar:** solid recorded period days, dashed predicted days, fertile tint with a dotted underline, ovulation ring, logged-event dots, and a dated summary of the visible month. Month/year selects and previous/next/today controls sit in the calendar header; keyboard navigation works.
-- **Day sheet:** symptoms (with mild/moderate/severe), mood, flow, intimacy, notes and custom labels, all with delete + undo.
+- **Calendar:** solid recorded period days, dashed predicted days, fertile tint with a dotted underline, ovulation ring, and small event-type icons (symptom, mood, flow, intimacy, note, custom) with a compact legend. A day opens an inline record panel **below** the calendar, never a modal. Month/year selects and previous/next/today controls sit in the calendar header; keyboard navigation works.
+- **Day panel:** symptoms (with mild/moderate/severe), mood, flow, intimacy, notes and custom labels, all with delete + undo. Notes and custom entries can be edited in place on past days.
+- **History editor:** add completed past periods with start/end dates, edit a cycle's dates, or delete it. Non-period records on those days are preserved; predictions and cycle stats update immediately. Entry is offered from the empty Today screen and Settings → Ciklų istorija.
 - **Predictions:** median of recent cycles, a 28-day default until two cycles exist, ranges when cycles vary, and Auto / Irregular / Paused modes.
 - **Data:** cycle history, JSON backup and restore, `.ics` prediction export, erase-all, and a backup nudge.
 - **Offline PWA:** installable, dark mode follows the system, no network access at runtime.
@@ -39,7 +41,7 @@ Requires Node 22+ and pnpm.
 
 ```bash
 pnpm check        # svelte-check: 0 errors, 0 warnings
-pnpm test         # Vitest: date math, Lithuanian dates, plural rules, periods, cycle prediction, backup, ICS
+pnpm test         # Vitest: dates, Lithuanian plural, periods and history ranges, cycle view, backup, ICS
 ```
 
 The browser suite needs Chromium. It is kept inside the workspace so it does not touch global caches:
@@ -49,7 +51,7 @@ PLAYWRIGHT_BROWSERS_PATH="$PWD/.playwright-browsers" pnpm exec playwright instal
 PLAYWRIGHT_BROWSERS_PATH="$PWD/.playwright-browsers" pnpm exec playwright test
 ```
 
-The nine flows cover first run and persistence, undo, still-bleeding/ended, keyboard operation, backdating and future refusal, pause mode, ICS download, export → erase → import, strict CSP and offline reload. All selectors use the same Lithuanian copy as the app.
+The eleven flows cover first run and persistence, tabs and tab-state preservation, inline day panel, event icons/legend, note editing, undo, still-bleeding/ended, keyboard operation, backdating and future refusal, pause mode, history add/edit/delete, ICS download, export → erase → import, strict CSP and offline reload. All selectors use the same Lithuanian copy as the app.
 
 ## Install as a PWA
 
@@ -73,26 +75,28 @@ On iOS open the link in **Safari**, tap Share → **Add to Home Screen**, then A
 
 ```
 src/
-├─ App.svelte               shell, views, fixed action bar, day sheet
-├─ app.css                  light/dark tokens, base, calendar, sheet
+├─ App.svelte               shell, tabs, views, fixed action bar, inline day panel
+├─ app.css                  light/dark tokens, tabs, calendar, panel, legend
 ├─ lib/
 │  ├─ date.ts               DayKey arithmetic and formatting
 │  ├─ periods.ts            blocks, confirmations, active period
 │  ├─ cycle.ts              median prediction, ranges, modes, history, projection
+│  ├─ cycle-view.ts         dashboard phase and cycle-bar geometry
+│  ├─ icon-names.ts         line-icon names and event-kind mapping
 │  ├─ db.ts                 IndexedDB via idb
 │  ├─ store.svelte.ts       runes store, write-through persistence, undo
 │  ├─ backup.ts             JSON validation, merge, download
 │  └─ ics.ts                all-day calendar export
-└─ components/              Dashboard, MonthCalendar, DaySheet, Settings, …
+└─ components/              Dashboard, MonthCalendar, DayPanel, CycleHistory, Settings, …
 ```
 
 The canonical date is a `YYYY-MM-DD` string everywhere except inside `MonthCalendar`, where `@internationalized/date` converts to and from `CalendarDate` for Bits UI's headless calendar.
 
 ## Verification snapshot
 
-- 64 unit tests in 6 files and 9 Playwright flows pass; `svelte-check` is clean.
-- Production build: **57.8 KB gzip JS**, 4.0 KB gzip CSS, 15 precached files (≈202 KB).
-- 390 px and 320 px: no horizontal overflow; day cells 46×46 and 40×40; no visible control below 44 px. At 390, the today cell clears the fixed action bar.
+- 76 unit tests in 7 files and 11 Playwright flows pass; `svelte-check` is clean.
+- Production build: **62.3 KB gzip JS**, 4.6 KB gzip CSS, 15 precached files (≈221 KB).
+- 390 px and 320 px: no horizontal overflow; day cells 46×46 and 40×40; tabs and controls are 44 px. The calendar tab shows the full month above the action bar; the day panel sits below it.
 - All key text/background pairs pass 4.5:1 in both palettes; control borders are at least 3.16:1.
 - Screenshots: [`screenshots/`](screenshots/).
 
@@ -102,6 +106,6 @@ The canonical date is a `YYYY-MM-DD` string everywhere except inside `MonthCalen
 
 - Mobile-only by design: on a desktop it renders as a centred phone-width column.
 - TypeScript is pinned to 6.0.3 because this `svelte-check` release does not support TypeScript 7.
-- The JS bundle is about 8 KB gzip over the original 50 KB target.
+- The JS bundle is about 12 KB gzip over the original 50 KB target.
 - The UI is Lithuanian only; there is no language switch.
 - No notifications, sync or app lock, by decision.

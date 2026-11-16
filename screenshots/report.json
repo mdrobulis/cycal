@@ -6,6 +6,17 @@
     },
     "scrollWidth": 390,
     "horizontalOverflow": false,
+    "dayCell": null,
+    "visibleButtonsUnder44": 0,
+    "theme": "light"
+  },
+  "calendar390": {
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "scrollWidth": 390,
+    "horizontalOverflow": false,
     "dayCell": {
       "width": 46,
       "height": 46
@@ -21,6 +32,17 @@
     },
     "scrollWidth": 390,
     "horizontalOverflow": false,
+    "dayCell": null,
+    "visibleButtonsUnder44": 0,
+    "theme": "dark"
+  },
+  "calendarDark390": {
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "scrollWidth": 390,
+    "horizontalOverflow": false,
     "dayCell": {
       "width": 46,
       "height": 46
@@ -29,6 +51,17 @@
     "theme": "dark"
   },
   "home320": {
+    "viewport": {
+      "width": 320,
+      "height": 700
+    },
+    "scrollWidth": 320,
+    "horizontalOverflow": false,
+    "dayCell": null,
+    "visibleButtonsUnder44": 0,
+    "theme": "light"
+  },
+  "calendar320": {
     "viewport": {
       "width": 320,
       "height": 700

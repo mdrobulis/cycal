@@ -3,6 +3,8 @@
 Status: v4 · implemented and verified 16 Nov 2026
 
 > **v1.1 UI pass (16 Nov 2026):** the shipped UI is now Lithuanian, the palette and calendar marks were reworked for contrast, and the calendar gained a dated summary of the visible month. The original "English UI" decision and §11 build numbers are historical; see §12.
+>
+> **v2 UI pass (16 Nov 2026):** dashboard and calendar are now separate tabs, the dashboard is a glance view with a cycle bar, the calendar uses event icons and a compact legend, day records open below the calendar, and past cycles can be added/edited/deleted. See §13.
 
 A local-only **Vite + Svelte 5 SPA PWA** for one person, with the month grid built on **Bits UI Calendar** and styled entirely from our own tokens. No account, no backend, no telemetry.
 
@@ -378,3 +380,20 @@ The v1 mechanics, schema, URLs and QR stayed unchanged. This pass changed presen
 **Fixed during this pass.** Bits UI's prev/next buttons overrode the Lithuanian `aria-label` with “Previous/Next” — replaced with custom buttons. The year select truncated at 320 — narrow-width header widths. The today cell sat under the action bar — compact hero/active bar and spacing. Sheet chips and severity buttons were 40 px — raised to 44 px. The duplicate irregular-cycle note moved to the calendar summary only.
 
 **Still not verified:** real iOS install/storage eviction, real screen-reader output, and importing the `.ics` into Apple/Google Calendar. The live URL and QR are unchanged.
+
+
+## 13. v2 UI pass — 16 Nov 2026
+
+**Tabs.** `Šiandien` and `Kalendorius` are sticky, keyboard-accessible tabs. Both panels stay mounted and are toggled with `hidden`, so the calendar month and selected day survive tab switches. The fixed action bar remains on both; the backup nudge stays on Today.
+
+**Today.** The six values remain, but as a scan list rather than a 2×3 grid: cycle day + one-word phase, an 8 px cycle bar, `Kitos mėnesinės` (date + countdown), `Vaisingos`, `Ovuliacija`, `PMS`, `Paskutinės`. Long sublines and prose statuses are gone. The bar shows period/fertile/PMS segments and today/ovulation/next markers only when an exact next start exists and the estimate is not paused, irregular, late or built from the default length. The empty state offers `Įrašyti istoriją` directly.
+
+**Calendar.** The dated summary was removed. Days now show up to three unique event-kind icons (pulse, face, droplet, heart, note, star) plus an overflow dot; a compact legend lists only the states and event kinds present in the visible month. Period events are expressed by the solid fill, not an extra icon. A screen-reader-only record count is appended to each day.
+
+**Inline panel.** The modal `<dialog>`, backdrop and body lock were removed. Selecting a day opens a labelled region after the calendar. It focuses the panel and scrolls it into view, keeps the calendar in the document, has no focus trap, closes on Escape/close, and returns focus to the selected day. The same add/delete/severity controls remain; notes and custom labels gained a pencil edit flow. The global undo toast is suppressed while the panel is open because the panel has its own undo row.
+
+**History editing.** `Ciklų istorija` is now an editor: add a completed period (start/end, end auto-suggested), edit start/end, delete with confirmation. The form stays open after saving for quick multiple-cycle entry. Validation rejects future/reversed ranges, overlaps, ranges crossing the next start, ordering changes, open ends on non-latest cycles, and completed periods after a currently open period. Editing/deleting removes only period events in that block; other event kinds are preserved. Adding starts changes cycle-length medians; adding ends changes period-length medians; predictions update immediately.
+
+**Verification.** `svelte-check` clean; 76 unit tests in 7 files; 11 Playwright flows; build **62.3 KB gzip JS**, 4.6 KB gzip CSS, 15 precached files (221 KiB). 390 and 320 px have no horizontal overflow, tabs and controls are 44 px, and the calendar month fits above the action bar. Screenshots cover Today/Calendar light and dark, 320 px, the inline day panel, settings, and the history editor.
+
+**Data and deployment.** No IndexedDB, backup, settings, URL or QR changes. Existing data and backups remain valid. The Pages workflow and live URL are unchanged. Real iOS install/safe-area/screen-reader output and ICS import remain untested.

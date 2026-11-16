@@ -1,39 +1,82 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
+  import { onMount, tick } from 'svelte';
   import { app } from './lib/store.svelte';
   import { exportBackup } from './lib/backup';
   import { COPY } from './lib/strings';
-  import type { DayKey, View } from './lib/types';
+  import type { DayKey, HomeTab, View } from './lib/types';
   import ActivePeriodCard from './components/ActivePeriodCard.svelte';
   import BackupNudge from './components/BackupNudge.svelte';
   import CycleHistory from './components/CycleHistory.svelte';
   import Dashboard from './components/Dashboard.svelte';
-  import DaySheet from './components/DaySheet.svelte';
+  import DayPanel from './components/DayPanel.svelte';
   import Icon from './components/Icon.svelte';
   import MonthCalendar from './components/MonthCalendar.svelte';
   import Settings from './components/Settings.svelte';
   import UndoToast from './components/UndoToast.svelte';
 
   let view = $state<View>('home');
-  let sheetDate = $state<DayKey | null>(null);
+  let homeTab = $state<HomeTab>('today');
+  let selectedDay = $state<DayKey | null>(null);
+  let historyReturn = $state<'home' | 'settings'>('settings');
+  let historyStartAdding = $state(false);
   let actionError = $state<string | null>(null);
+
+  const TABS: HomeTab[] = ['today', 'calendar'];
 
   onMount(() => {
     void app.init();
-    const tick = setInterval(() => app.refreshToday(), 60_000);
+    const tickTimer = setInterval(() => app.refreshToday(), 60_000);
     const onVisible = () => {
       if (!document.hidden) app.refreshToday();
     };
     document.addEventListener('visibilitychange', onVisible);
     return () => {
-      clearInterval(tick);
+      clearInterval(tickTimer);
       document.removeEventListener('visibilitychange', onVisible);
     };
   });
 
+  function reduceMotion(): boolean {
+    return window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  }
+
   function go(next: View): void {
     view = next;
     window.scrollTo({ top: 0 });
+  }
+
+  function openHistory(returnTo: 'home' | 'settings', startAdding = false): void {
+    historyReturn = returnTo;
+    historyStartAdding = startAdding;
+    go('history');
+  }
+
+  function selectTab(tab: HomeTab): void {
+    if (homeTab === tab) return;
+    homeTab = tab;
+    window.scrollTo({ top: 0, behavior: reduceMotion() ? 'auto' : 'smooth' });
+  }
+
+  function onTabKeydown(event: KeyboardEvent, tab: HomeTab): void {
+    const index = TABS.indexOf(tab);
+    let next: HomeTab | null = null;
+    if (event.key === 'ArrowRight') next = TABS[(index + 1) % TABS.length]!;
+    else if (event.key === 'ArrowLeft') next = TABS[(index - 1 + TABS.length) % TABS.length]!;
+    else if (event.key === 'Home') next = TABS[0]!;
+    else if (event.key === 'End') next = TABS[TABS.length - 1]!;
+    if (!next) return;
+    event.preventDefault();
+    selectTab(next);
+    document.getElementById(`tab-${next}`)?.focus();
+  }
+
+  async function closeDay(): Promise<void> {
+    const day = selectedDay;
+    selectedDay = null;
+    await tick();
+    if (day) {
+      document.querySelector<HTMLElement>(`.cal-day[data-value="${day}"]`)?.focus();
+    }
   }
 
   function exportNow(): void {
@@ -47,7 +90,10 @@
     actionError = null;
     try {
       const result = await app.markPeriodStart(app.today);
-      if (result === 'exists') sheetDate = app.today;
+      if (result === 'exists') {
+        homeTab = 'calendar';
+        selectedDay = app.today;
+      }
     } catch (cause) {
       actionError = cause instanceof Error ? cause.message : COPY.errors.save;
     }
@@ -71,6 +117,33 @@
         <Icon name="settings" />
       </button>
     </header>
+
+    <div class="tabs">
+      <div class="tabs-inner" role="tablist" aria-label={COPY.tabs.aria}>
+        <button
+          id="tab-today"
+          role="tab"
+          aria-selected={homeTab === 'today'}
+          aria-controls="today-panel"
+          tabindex={homeTab === 'today' ? 0 : -1}
+          onclick={() => selectTab('today')}
+          onkeydown={(event) => onTabKeydown(event, 'today')}
+        >
+          {COPY.tabs.today}
+        </button>
+        <button
+          id="tab-calendar"
+          role="tab"
+          aria-selected={homeTab === 'calendar'}
+          aria-controls="calendar-panel"
+          tabindex={homeTab === 'calendar' ? 0 : -1}
+          onclick={() => selectTab('calendar')}
+          onkeydown={(event) => onTabKeydown(event, 'calendar')}
+        >
+          {COPY.tabs.calendar}
+        </button>
+      </div>
+    </div>
   {/if}
 
   {#if app.storageBlocked}
@@ -81,19 +154,50 @@
     {#if !app.ready}
       <p class="loading">{COPY.common.loading}</p>
     {:else if view === 'settings'}
-      <Settings onBack={() => go('home')} onHistory={() => go('history')} onExport={exportNow} />
-    {:else if view === 'history'}
-      <CycleHistory onBack={() => go('settings')} />
-    {:else}
-      <Dashboard stats={app.stats} today={app.today} />
-      <MonthCalendar
-        events={app.events}
-        stats={app.stats}
-        today={app.today}
-        selectedDay={sheetDate}
-        onSelectDay={(day) => (sheetDate = day)}
+      <Settings
+        onBack={() => go('home')}
+        onHistory={() => openHistory('settings')}
+        onExport={exportNow}
       />
-      <BackupNudge onExport={exportNow} />
+    {:else if view === 'history'}
+      <CycleHistory onBack={() => go(historyReturn)} startAdding={historyStartAdding} />
+    {:else}
+      <div
+        id="today-panel"
+        role="tabpanel"
+        aria-labelledby="tab-today"
+        tabindex="0"
+        hidden={homeTab !== 'today'}
+      >
+        <Dashboard
+          stats={app.stats}
+          today={app.today}
+          onHistory={() => openHistory('home', true)}
+        />
+        <BackupNudge onExport={exportNow} />
+      </div>
+
+      <div
+        id="calendar-panel"
+        role="tabpanel"
+        aria-labelledby="tab-calendar"
+        tabindex="0"
+        hidden={homeTab !== 'calendar'}
+      >
+        <MonthCalendar
+          events={app.events}
+          stats={app.stats}
+          today={app.today}
+          selectedDay={selectedDay}
+          onSelectDay={(day) => (selectedDay = day)}
+        />
+        {#if selectedDay}
+          {#key selectedDay}
+            <DayPanel date={selectedDay} onClose={closeDay} />
+          {/key}
+        {/if}
+      </div>
+
       {#if actionError}
         <p class="banner action-error" role="alert">{actionError}</p>
       {/if}
@@ -117,11 +221,7 @@
   </footer>
 {/if}
 
-{#if sheetDate}
-  <DaySheet date={sheetDate} onClose={() => (sheetDate = null)} />
-{/if}
-
-{#if !sheetDate}
+{#if view === 'home' && !selectedDay}
   <UndoToast />
 {/if}
 

@@ -1,4 +1,4 @@
-import { addDays, diffDays, rangeDays } from './date';
+import { addDays, diffDays, isDayKey, rangeDays } from './date';
 import type { ActivePeriod, DayEvent, DayKey, PeriodBlock } from './types';
 
 function uniqueSorted(dates: DayKey[]): DayKey[] {
@@ -88,4 +88,53 @@ export function endDateForActive(events: DayEvent[], today: DayKey): DayKey | nu
   if (!active) return null;
   if (active.hasConfirmations) return active.lastConfirmed;
   return active.start < today ? addDays(today, -1) : active.start;
+}
+
+
+export type PeriodRangeIssue =
+  | 'invalid'
+  | 'future'
+  | 'endFuture'
+  | 'backwards'
+  | 'overlap'
+  | 'afterNext'
+  | 'order'
+  | 'openActive'
+  | 'openNotLatest'
+  | null;
+
+/**
+ * Validate a start/end range against the existing period blocks. `end = null`
+ * means an open period and is only valid for the latest cycle.
+ */
+export function periodRangeIssue(
+  events: DayEvent[],
+  start: DayKey,
+  end: DayKey | null,
+  today: DayKey,
+  ignoreStart?: DayKey,
+): PeriodRangeIssue {
+  if (!isDayKey(start) || (end !== null && !isDayKey(end))) return 'invalid';
+  if (start > today) return 'future';
+  if (end !== null && end > today) return 'endFuture';
+  if (end !== null && end < start) return 'backwards';
+
+  const rangeEnd = end ?? start;
+  const blocks = periodBlocks(events).filter((block) => block.start !== ignoreStart);
+  const openBlock = blocks.find((block) => block.active);
+  if (openBlock && start > openBlock.start) return 'openActive';
+  for (const block of blocks) {
+    if (start <= block.lastConfirmed && rangeEnd >= block.start) return 'overlap';
+  }
+
+  const starts = periodStarts(events);
+  const nextStart = ignoreStart
+    ? starts.find((candidate) => candidate > ignoreStart)
+    : starts.find((candidate) => candidate > start);
+  if (nextStart) {
+    if (start >= nextStart) return 'order';
+    if (end === null) return 'openNotLatest';
+    if (end >= nextStart) return 'afterNext';
+  }
+  return null;
 }

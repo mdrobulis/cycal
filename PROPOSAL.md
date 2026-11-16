@@ -5,6 +5,8 @@ Proposal v0.1 · 13 Nov 2026 · implemented 16 Nov 2026 · single user, single d
 > **Built.** See [README.md](README.md) for run/test instructions and [PLAN.md](PLAN.md) for the final decisions and build report.
 >
 > **v1.1 UI pass (16 Nov 2026):** the UI is now Lithuanian, with a higher-contrast palette and a dated calendar summary. The original “English UI” wording in §1 is historical; see §10.
+>
+> **v2 UI pass (16 Nov 2026):** Today and Calendar are separate tabs; the dashboard is a glance view; the calendar uses event icons; day records open below it; and past cycles are editable. See §11.
 
 **The job, in the user's words:** *"Check where I am in my cycle, and note what happened today."*
 
@@ -172,3 +174,10 @@ Implemented in the order planned in [PLAN.md](PLAN.md) §6: scaffold and tokens 
 The app is now Lithuanian throughout, using direct “tu” copy, short dates (`lapkr. 16 d.`), full Lithuanian weekdays, Lithuanian plural forms and a Lithuanian `.ics` export. The palette was reworked for contrast: solid recorded-period fill, dashed predictions, fertile tint plus dotted underline, ovulation ring, and a dated summary of the visible month above the grid. The dashboard is a compact two-column grid, and previous/next/today moved into the calendar header. No schema, storage, URL or QR changes; existing backups remain valid.
 
 Screenshots: [`screenshots/`](screenshots/). Verification: 64 unit tests, 9 Playwright flows, 57.8 KB gzip JS, no overflow at 320/390, no visible control below 44 px.
+
+
+## 11. v2 UI update — 16 Nov 2026
+
+Today and Calendar are now one-tap tabs. Today keeps the six values but presents them as a cycle day + phase, a thin cycle bar, and five icon/date rows; the prose sublines are gone. The calendar drops the dated summary for a compact legend and small event-kind icons (symptom, mood, flow, intimacy, note, custom). Tapping a day opens its records in an inline panel below the calendar instead of a modal, with focus/scroll handling and no body lock. Past cycles can be added, edited and deleted in `Ciklų istorija`; notes and custom records are editable in place. Validation protects overlaps, ordering, future dates and open periods, and predictions recalculate from the edited events.
+
+No IndexedDB, backup, settings, URL or QR changes. Verification: 76 unit tests, 11 browser flows, 62.3 KB gzip JS, 4.6 KB gzip CSS. Real iOS install/safe-area/screen-reader behaviour and ICS import remain untested.

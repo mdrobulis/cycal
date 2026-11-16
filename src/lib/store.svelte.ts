@@ -1,6 +1,13 @@
 import { addDays, todayKey } from './date';
 import { computeHistory, computeStats } from './cycle';
-import { endDateForActive, findActivePeriod, periodCoversDate } from './periods';
+import {
+  endDateForActive,
+  findActivePeriod,
+  periodBlocks,
+  periodCoversDate,
+  periodRangeIssue,
+  type PeriodRangeIssue,
+} from './periods';
 import * as db from './db';
 import { isValidEvent, mergeEvents } from './backup';
 import { COPY } from './strings';
@@ -23,6 +30,33 @@ function sortEvents(events: DayEvent[]): DayEvent[] {
   return [...events].sort(
     (a, b) => a.date.localeCompare(b.date) || a.createdAt.localeCompare(b.createdAt),
   );
+}
+
+function isPeriodEvent(kind: EventKind): boolean {
+  return kind === 'period-start' || kind === 'period-day' || kind === 'period-end';
+}
+
+function periodRangeError(issue: Exclude<PeriodRangeIssue, null>): Error {
+  switch (issue) {
+    case 'invalid':
+      return new Error(COPY.errors.periodInvalid);
+    case 'future':
+      return new Error(COPY.errors.periodFuture);
+    case 'endFuture':
+      return new Error(COPY.errors.periodEndFuture);
+    case 'backwards':
+      return new Error(COPY.errors.periodBackwards);
+    case 'overlap':
+      return new Error(COPY.errors.periodOverlap);
+    case 'afterNext':
+      return new Error(COPY.errors.periodAfterNext);
+    case 'order':
+      return new Error(COPY.errors.periodOrder);
+    case 'openActive':
+      return new Error(COPY.errors.periodActive);
+    case 'openNotLatest':
+      return new Error(COPY.errors.periodOpenNotLatest);
+  }
 }
 
 function newId(): string {
@@ -180,6 +214,48 @@ class CycalStore {
     const end = endDateForActive(this.events, today);
     if (!end) return;
     await this.markPeriodEnd(end);
+  }
+
+  async addPeriodRange(start: DayKey, end: DayKey): Promise<void> {
+    const issue = periodRangeIssue(this.events, start, end, this.today);
+    if (issue) throw periodRangeError(issue);
+    this.#clearUndo();
+    await this.addEvent({ kind: 'period-start', date: start });
+    await this.addEvent({ kind: 'period-end', date: end });
+  }
+
+  async updatePeriodRange(
+    originalStart: DayKey,
+    start: DayKey,
+    end: DayKey | null,
+  ): Promise<void> {
+    const block = periodBlocks(this.events).find((candidate) => candidate.start === originalStart);
+    if (!block) throw new Error(COPY.errors.periodNotFound);
+    const issue = periodRangeIssue(this.events, start, end, this.today, originalStart);
+    if (issue) throw periodRangeError(issue);
+    this.#clearUndo();
+    const oldEvents = this.events.filter(
+      (event) =>
+        isPeriodEvent(event.kind) &&
+        event.date >= block.start &&
+        event.date <= block.lastConfirmed,
+    );
+    for (const event of oldEvents) await this.#removeSilent(event.id);
+    await this.addEvent({ kind: 'period-start', date: start });
+    if (end) await this.addEvent({ kind: 'period-end', date: end });
+  }
+
+  async deletePeriodRange(originalStart: DayKey): Promise<void> {
+    const block = periodBlocks(this.events).find((candidate) => candidate.start === originalStart);
+    if (!block) throw new Error(COPY.errors.periodNotFound);
+    this.#clearUndo();
+    const oldEvents = this.events.filter(
+      (event) =>
+        isPeriodEvent(event.kind) &&
+        event.date >= block.start &&
+        event.date <= block.lastConfirmed,
+    );
+    for (const event of oldEvents) await this.#removeSilent(event.id);
   }
 
   async setMood(date: DayKey, value: number): Promise<void> {

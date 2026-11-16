@@ -1,11 +1,11 @@
 import { readFile } from 'node:fs/promises';
-import { expect, test } from '@playwright/test';
+import { expect, test, type Page } from '@playwright/test';
 import { COPY, ltCount } from '../src/lib/strings';
 import { SYMPTOMS } from '../src/lib/vocab';
 
 const SYMPTOM = SYMPTOMS[0]!;
 
-function collectErrors(page: import('@playwright/test').Page): string[] {
+function collectErrors(page: Page): string[] {
   const errors: string[] = [];
   page.on('pageerror', (error) => errors.push(error.message));
   page.on('console', (message) => {
@@ -21,42 +21,93 @@ function currentDayKey(): string {
   return `${now.getFullYear()}-${month}-${day}`;
 }
 
-test('pirmas paleidimas: pažymi mėnesines, prideda simptomą ir išsaugo', async ({ page }) => {
+function tab(page: Page, which: 'today' | 'calendar') {
+  return page.getByRole('tab', { name: COPY.tabs[which] });
+}
+
+async function openCalendar(page: Page): Promise<void> {
+  await tab(page, 'calendar').click();
+  await expect(page.locator('#calendar-panel')).toBeVisible();
+}
+
+async function closePanel(page: Page): Promise<void> {
+  await page.locator('.day-panel').getByRole('button', { name: COPY.common.close }).click();
+  await expect(page.locator('.day-panel')).toHaveCount(0);
+}
+
+test('pirmas paleidimas: mėnesinės, skirtukai ir dienos įrašai išlieka', async ({ page }) => {
   const errors = collectErrors(page);
-  const cell = page.locator(`.cal-day[data-value="${currentDayKey()}"]`);
+  const day = currentDayKey();
+  const cell = page.locator(`.cal-day[data-value="${day}"]`);
 
   await page.goto('/');
   await expect(page.getByRole('heading', { name: COPY.dashboard.emptyTitle })).toBeVisible();
+  await expect(tab(page, 'today')).toHaveAttribute('aria-selected', 'true');
+  await expect(page.locator('#calendar-panel')).toBeHidden();
+
   await page.getByRole('button', { name: COPY.app.markPeriod }).click();
   await expect(page.getByRole('button', { name: COPY.period.still })).toBeVisible();
   await expect(page.getByText(COPY.period.day(1), { exact: true })).toBeVisible();
-  await expect(page.locator('.cal-summary')).toContainText(COPY.calendar.summary.period);
 
-  await page.reload();
-  await expect(page.getByRole('button', { name: COPY.period.still })).toBeVisible();
-
-  await cell.scrollIntoViewIfNeeded();
+  await openCalendar(page);
+  await expect(tab(page, 'calendar')).toHaveAttribute('aria-selected', 'true');
   await cell.click();
-  await expect(page.getByRole('dialog')).toBeVisible();
+  await expect(page.locator('.day-panel')).toBeVisible();
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+
+  const calendarBox = await page.locator('.calendar').boundingBox();
+  const panelBox = await page.locator('.day-panel').boundingBox();
+  expect(panelBox!.y).toBeGreaterThanOrEqual(calendarBox!.y + calendarBox!.height - 1);
+
+  await tab(page, 'today').click();
+  await expect(page.locator('.day-panel')).toBeHidden();
+  await tab(page, 'calendar').click();
+  await expect(page.locator('.day-panel')).toBeVisible();
+
   await page.getByRole('button', { name: COPY.sheet.symptom, exact: true }).click();
   await page.getByRole('button', { name: SYMPTOM, exact: true }).click();
   await expect(page.locator('.event-label').filter({ hasText: SYMPTOM })).toBeVisible();
+  await expect(cell.locator('.event-icons svg')).toHaveCount(1);
+  await expect(page.locator('.cal-legend')).toContainText(COPY.sheet.symptom);
 
   await page.getByRole('button', { name: COPY.sheet.deleteAria(SYMPTOM) }).click();
   await expect(page.getByText(COPY.sheet.undoMessage)).toBeVisible();
   await page.getByRole('button', { name: COPY.common.undo, exact: true }).click();
   await expect(page.locator('.event-label').filter({ hasText: SYMPTOM })).toBeVisible();
 
-  await page.getByRole('button', { name: COPY.common.done }).click();
-  await expect(page.getByRole('dialog')).toBeHidden();
-
+  await closePanel(page);
+  await expect(cell).toBeFocused();
   await cell.click();
-  await expect(page.getByRole('dialog')).toBeVisible();
-  await page.getByRole('button', { name: COPY.common.done }).click();
-  await expect(page.getByRole('dialog')).toBeHidden();
+  await expect(page.locator('.day-panel')).toBeVisible();
+  await closePanel(page);
 
   await page.reload();
-  await expect(cell.locator('.dot')).toHaveCount(1);
+  await expect(tab(page, 'today')).toHaveAttribute('aria-selected', 'true');
+  await openCalendar(page);
+  await expect(cell.locator('.event-icons svg')).toHaveCount(1);
+  expect(errors).toEqual([]);
+});
+
+test('dienos panelė leidžia redaguoti pastabą, o kalendorius lieka matomas', async ({ page }) => {
+  const errors = collectErrors(page);
+  await page.goto('/');
+  await openCalendar(page);
+  await page.locator('.cal-day[data-today]').click();
+
+  await page.getByRole('button', { name: COPY.sheet.note, exact: true }).click();
+  await page.getByLabel(COPY.sheet.noteLabel).fill('Pirmas tekstas');
+  await page.getByRole('button', { name: COPY.sheet.addNote }).click();
+  await expect(page.locator('.event-detail')).toHaveText('Pirmas tekstas');
+
+  await page.getByRole('button', { name: COPY.sheet.editAria(COPY.sheet.note) }).click();
+  await page.getByRole('textbox', { name: COPY.sheet.noteLabel }).fill('Pataisytas tekstas');
+  await page.getByRole('button', { name: COPY.sheet.save }).click();
+  await expect(page.locator('.event-detail')).toHaveText('Pataisytas tekstas');
+
+  await expect(page.locator('.calendar')).toBeVisible();
+  await expect(page.locator('.day-panel')).toBeVisible();
+  await expect(page.locator('.cal-legend')).toContainText(COPY.sheet.note);
+  await closePanel(page);
   expect(errors).toEqual([]);
 });
 
@@ -97,13 +148,15 @@ test('veikia neprisijungus po pirmo apsilankymo', async ({ page, context }) => {
 
 test('prognozių režimą galima pristabdyti, ir tai išlieka po perkrovimo', async ({ page }) => {
   await page.goto('/');
+  await page.getByRole('button', { name: COPY.app.markPeriod }).click();
+  await page.getByRole('button', { name: COPY.period.ended }).click();
   await page.getByRole('button', { name: COPY.common.settings }).click();
   await page.getByRole('button', { name: COPY.settings.modes.paused.label, exact: true }).click();
   await page.getByRole('button', { name: COPY.common.back, exact: true }).click();
-  await expect(page.getByText(COPY.dashboard.status.paused, { exact: true })).toBeVisible();
+  await expect(page.getByText(COPY.dashboard.phase.paused, { exact: true })).toBeVisible();
 
   await page.reload();
-  await expect(page.getByText(COPY.dashboard.status.paused, { exact: true })).toBeVisible();
+  await expect(page.getByText(COPY.dashboard.phase.paused, { exact: true })).toBeVisible();
 });
 
 test('eksportuoja prognozes į .ics failą', async ({ page }) => {
@@ -132,31 +185,42 @@ test('„Dar kraujuoji“ palieka mėnesines atviras, „Baigėsi“ uždaro', a
 
   await page.getByRole('button', { name: COPY.period.ended }).click();
   await expect(page.getByRole('button', { name: COPY.app.markPeriod })).toBeVisible();
-  await expect(page.getByText('1 d.', { exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: COPY.period.still })).toHaveCount(0);
 });
 
-test('dienos kortelę galima atidaryti klaviatūra ir uždaryti Escape', async ({ page }) => {
+test('skirtukus galima perjungti klaviatūra, o dienos panelę atidaryti ir uždaryti Escape', async ({
+  page,
+}) => {
   await page.goto('/');
-  const cell = page.locator(`.cal-day[data-value="${currentDayKey()}"]`);
+  await tab(page, 'today').focus();
+  await page.keyboard.press('ArrowRight');
+  await expect(tab(page, 'calendar')).toHaveAttribute('aria-selected', 'true');
+  await expect(tab(page, 'calendar')).toBeFocused();
+
+  const cell = page.locator('.cal-day[data-today]');
   await cell.focus();
   await page.keyboard.press('Enter');
-  await expect(page.getByRole('dialog')).toBeVisible();
+  await expect(page.locator('.day-panel')).toBeVisible();
 
   await page.keyboard.press('Escape');
-  await expect(page.getByRole('dialog')).toBeHidden();
+  await expect(page.locator('.day-panel')).toHaveCount(0);
+  await expect(cell).toBeFocused();
 });
 
 test('leidžia įrašyti praeityje ir neleidžia mėnesinių ateityje', async ({ page }) => {
   await page.goto('/');
+  await openCalendar(page);
   const year = page.getByRole('combobox', { name: COPY.calendar.year });
   const month = page.getByRole('combobox', { name: COPY.calendar.month });
 
   await year.selectOption({ label: '2024' });
   await month.selectOption({ index: 9 });
+  await tab(page, 'today').click();
+  await tab(page, 'calendar').click();
   await page.locator('.cal-day[data-value="2024-10-15"]').click();
-  await expect(page.getByRole('dialog')).toBeVisible();
+  await expect(page.locator('.day-panel')).toBeVisible();
   await page.getByRole('button', { name: COPY.period.started }).click();
-  await page.getByRole('button', { name: COPY.common.done }).click();
+  await closePanel(page);
 
   const stored = await page.evaluate(async () => {
     const db = await new Promise<IDBDatabase>((resolve, reject) => {
@@ -184,6 +248,50 @@ test('leidžia įrašyti praeityje ir neleidžia mėnesinių ateityje', async ({
   await month.selectOption({ index: 0 });
   await page.locator('.cal-day[data-value="2027-01-15"]').click();
   await expect(page.getByText(COPY.sheet.futureNote)).toBeVisible();
+});
+
+test('istoriją galima įrašyti, redaguoti ir ištrinti', async ({ page }) => {
+  const errors = collectErrors(page);
+  await page.goto('/');
+  await page.getByRole('button', { name: COPY.dashboard.historyCta }).click();
+
+  const addForm = page.locator('.form-card');
+  await expect(addForm).toBeVisible();
+  await addForm.getByLabel(COPY.history.start).fill('2026-09-01');
+  await addForm.getByLabel(COPY.history.end).fill('2026-09-05');
+  await addForm.getByRole('button', { name: COPY.history.save }).click();
+  await expect(page.getByText(COPY.history.added)).toBeVisible();
+
+  await addForm.getByLabel(COPY.history.start).fill('2026-10-01');
+  await addForm.getByLabel(COPY.history.end).fill('2026-10-05');
+  await addForm.getByRole('button', { name: COPY.history.save }).click();
+  await expect(page.locator('.cycle-row')).toHaveCount(2);
+  await expect(page.locator('.summary')).toContainText('1 ciklas');
+
+  const first = page.locator('.cycle-row').first();
+  await first.getByRole('button', { name: /Redaguoti/ }).click();
+  const edit = page.locator('.edit-form').first();
+  await edit.getByLabel(COPY.history.end).fill('2026-09-06');
+  await edit.getByRole('button', { name: COPY.history.save }).click();
+  await expect(page.getByText(COPY.history.updated)).toBeVisible();
+  await expect(page.locator('.cycle-row').first()).toContainText('rugs. 1–6 d.');
+
+  await page.locator('.cycle-row').first().getByRole('button', { name: /Redaguoti/ }).click();
+  const badEdit = page.locator('.edit-form').first();
+  await badEdit.getByLabel(COPY.history.end).fill('2026-10-02');
+  await badEdit.getByRole('button', { name: COPY.history.save }).click();
+  await expect(page.locator('.edit-form .form-error')).toContainText(
+    /Pabaiga turi būti prieš kitas mėnesines|Persidengia/,
+  );
+  await badEdit.getByRole('button', { name: COPY.common.cancel }).click();
+
+  const second = page.locator('.cycle-row').last();
+  await second.getByRole('button', { name: /Ištrinti/ }).click();
+  const confirm = page.getByRole('dialog', { name: COPY.history.deleteTitle });
+  await confirm.getByRole('button', { name: COPY.history.deleteConfirm }).click();
+  await expect(page.getByText(COPY.history.deleted)).toBeVisible();
+  await expect(page.locator('.cycle-row')).toHaveCount(1);
+  expect(errors).toEqual([]);
 });
 
 test('eksportuoja, ištrina ir atkuria atsarginę kopiją', async ({ page }) => {

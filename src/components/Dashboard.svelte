@@ -1,151 +1,152 @@
 <script lang="ts">
+  import { cycleBar, cyclePhase } from '../lib/cycle-view';
   import { formatDay, formatRange, relativeDays } from '../lib/date';
   import { COPY } from '../lib/strings';
   import type { CycleStats } from '../lib/types';
+  import Icon from './Icon.svelte';
 
-  let { stats, today }: { stats: CycleStats; today: string } = $props();
+  let {
+    stats,
+    today,
+    onHistory,
+  }: { stats: CycleStats; today: string; onHistory: () => void } = $props();
 
-  const fertileNow = $derived(
-    stats.fertileRange
-      ? today >= stats.fertileRange.from && today <= stats.fertileRange.to
-      : false,
-  );
+  const phase = $derived(cyclePhase(stats, today));
+  const bar = $derived(cycleBar(stats));
 
-  const status = $derived.by(() => {
-    if (stats.paused) return COPY.dashboard.status.paused;
-    if (stats.pendingBleeding && stats.lastStart) {
-      return COPY.dashboard.status.periodStarted(relativeDays(stats.lastStart, today));
+  const phaseLabel = $derived.by(() => {
+    switch (phase) {
+      case 'period':
+        return COPY.dashboard.phase.period;
+      case 'ovulation':
+        return COPY.dashboard.phase.ovulation;
+      case 'fertile':
+        return COPY.dashboard.phase.fertile;
+      case 'pms':
+        return COPY.dashboard.phase.pms;
+      case 'late':
+        return COPY.dashboard.phase.late(stats.daysLate ?? 0);
+      case 'luteal':
+        return COPY.dashboard.phase.luteal;
+      case 'paused':
+        return COPY.dashboard.phase.paused;
+      case 'irregular':
+        return COPY.dashboard.phase.irregular;
+      default:
+        return COPY.dashboard.phase.none;
     }
-    if (fertileNow) return COPY.dashboard.status.fertile;
-    if (stats.daysLate === 1) return COPY.dashboard.status.lateOne;
-    if (stats.daysLate) return COPY.dashboard.status.late(stats.daysLate);
-    if (stats.nextStart) {
-      return COPY.dashboard.status.next(relativeDays(stats.nextStart, today));
-    }
-    if (stats.nextRange) return COPY.dashboard.status.irregular;
-    if (!stats.lastStart) return COPY.dashboard.status.empty;
-    return COPY.dashboard.status.needAnother;
   });
 
-  const nextRelative = $derived.by(() => {
+  const nextText = $derived.by(() => {
+    if (stats.nextRange) return formatRange(stats.nextRange.from, stats.nextRange.to);
+    if (stats.nextStart) return formatDay(stats.nextStart);
+    return '—';
+  });
+  const nextApprox = $derived(Boolean(stats.nextRange || stats.usingDefault));
+
+  const nextHint = $derived.by(() => {
     if (!stats.nextStart) return '';
-    if (stats.daysLate) return COPY.dashboard.nextLate(stats.daysLate);
+    if (stats.daysLate) return COPY.dashboard.countdown.late(stats.daysLate);
     return relativeDays(stats.nextStart, today);
   });
 
-  const missingEstimate = $derived.by(() => {
-    if (stats.paused) return COPY.dashboard.subs.changeMode;
-    if (stats.irregular) return COPY.dashboard.subs.irregular;
-    if (!stats.enoughData) return COPY.dashboard.subs.needCycle;
-    return COPY.dashboard.subs.notEstimated;
+  const fertileText = $derived(
+    stats.fertileRange ? formatRange(stats.fertileRange.from, stats.fertileRange.to) : '—',
+  );
+  const ovulationText = $derived(stats.ovulation ? formatDay(stats.ovulation) : '—');
+  const pmsText = $derived(
+    stats.pmsRange ? formatRange(stats.pmsRange.from, stats.pmsRange.to) : '—',
+  );
+  const lastText = $derived.by(() => {
+    if (!stats.lastPeriod) return '—';
+    if (stats.lastPeriod.end) {
+      return formatRange(stats.lastPeriod.start, stats.lastPeriod.end);
+    }
+    return `${formatDay(stats.lastPeriod.start)} · ${COPY.dashboard.subs.ongoing}`;
   });
+
+  const showSafety = $derived(!stats.paused && Boolean(stats.nextStart || stats.nextRange));
 </script>
 
 <section class="dash" aria-label={COPY.dashboard.aria}>
-  <div class="hero-row">
-    <div>
-      <p class="eyebrow">{COPY.dashboard.eyebrow}</p>
-      <p class="hero">{stats.cycleDay ?? '—'}</p>
-    </div>
-    <p class="status">{status}</p>
-  </div>
-
   {#if stats.cycleCount === 0}
     <div class="empty">
       <h2>{COPY.dashboard.emptyTitle}</h2>
-      <p>{COPY.dashboard.emptyBody}</p>
+      <button class="secondary" onclick={onHistory}>{COPY.dashboard.historyCta}</button>
     </div>
   {:else}
-    <dl class="grid">
-      {#if stats.paused}
-        <div class="cell wide">
-          <dt>{COPY.dashboard.labels.predictions}</dt>
-          <dd>
-            <span class="value">{COPY.dashboard.pausedValue}</span>
-            <span class="sub">{COPY.dashboard.pausedSub}</span>
-          </dd>
-        </div>
-      {:else}
-        <div class="cell wide">
-          <dt>{COPY.dashboard.labels.next}</dt>
-          <dd>
-            {#if stats.nextRange}
-              <span class="value">{formatRange(stats.nextRange.from, stats.nextRange.to)}</span>
-              <span class="sub">{COPY.dashboard.subs.uncertain}</span>
-            {:else if stats.nextStart}
-              <span class="value">{formatDay(stats.nextStart)}</span>
-              <span class="sub">{nextRelative}</span>
-              {#if stats.usingDefault}
-                <span class="sub">{COPY.dashboard.subs.defaultCycle}</span>
-              {/if}
-            {:else}
-              <span class="value">—</span>
-              <span class="sub">{missingEstimate}</span>
-            {/if}
-          </dd>
-        </div>
+    <header class="hero-row">
+      <p class="day" aria-label={`Ciklo diena ${stats.cycleDay ?? '—'}`}>
+        <span class="num">{stats.cycleDay ?? '—'}</span><span class="unit">d.</span>
+      </p>
+      <span class="phase {phase}">{phaseLabel}</span>
+    </header>
 
-        <div class="cell">
-          <dt>{COPY.dashboard.labels.fertile}</dt>
-          <dd>
-            {#if stats.fertileRange}
-              <span class="value">{formatRange(stats.fertileRange.from, stats.fertileRange.to)}</span>
-              <span class="sub">{COPY.dashboard.subs.fiveBefore}</span>
-            {:else}
-              <span class="value">—</span>
-              <span class="sub">{missingEstimate}</span>
-            {/if}
-          </dd>
-        </div>
+    {#if bar}
+      <div
+        class="cycle-bar"
+        role="img"
+        aria-label={`${COPY.dashboard.cycleAria}: ${nextText}`}
+      >
+        <span
+          class="seg period"
+          style={`left:${bar.period.from}%;width:${bar.period.to - bar.period.from}%`}
+        ></span>
+        {#if bar.fertile}
+          <span
+            class="seg fertile"
+            style={`left:${bar.fertile.from}%;width:${bar.fertile.to - bar.fertile.from}%`}
+          ></span>
+        {/if}
+        {#if bar.pms}
+          <span
+            class="seg pms"
+            style={`left:${bar.pms.from}%;width:${bar.pms.to - bar.pms.from}%`}
+          ></span>
+        {/if}
+        {#if bar.ovulation !== undefined}
+          <span class="mark ovulation" style={`left:${bar.ovulation}%`}></span>
+        {/if}
+        {#if bar.today !== undefined}
+          <span class="mark today" style={`left:${bar.today}%`}></span>
+        {/if}
+        <span class="mark next"></span>
+      </div>
+    {/if}
 
-        <div class="cell">
-          <dt>{COPY.dashboard.labels.ovulation}</dt>
-          <dd>
-            {#if stats.ovulation}
-              <span class="value">{formatDay(stats.ovulation)}</span>
-            {:else}
-              <span class="value">—</span>
-              <span class="sub">{missingEstimate}</span>
-            {/if}
-          </dd>
-        </div>
-
-        <div class="cell">
-          <dt>{COPY.dashboard.labels.pms}</dt>
-          <dd>
-            {#if stats.pmsRange}
-              <span class="value">{formatRange(stats.pmsRange.from, stats.pmsRange.to)}</span>
-            {:else}
-              <span class="value">—</span>
-              <span class="sub">{missingEstimate}</span>
-            {/if}
-          </dd>
-        </div>
-      {/if}
-
-      <div class="cell">
-        <dt>{COPY.dashboard.labels.last}</dt>
+    <dl class="rows">
+      <div class="row next">
+        <dt><Icon name="calendar" size={18} /><span>{COPY.dashboard.rows.next}</span></dt>
         <dd>
-          {#if stats.lastPeriod}
-            {#if stats.lastPeriod.end}
-              <span class="value">
-                {formatRange(stats.lastPeriod.start, stats.lastPeriod.end)}
-              </span>
-              {#if stats.lastPeriod.length}
-                <span class="sub">{stats.lastPeriod.length} d.</span>
-              {/if}
-            {:else}
-              <span class="value">{formatDay(stats.lastPeriod.start)} · {COPY.dashboard.subs.ongoing}</span>
-              <span class="sub">{COPY.dashboard.subs.notEnded}</span>
-            {/if}
-          {:else}
-            <span class="value">—</span>
-          {/if}
+          <span class="date">
+            {#if nextApprox}<span class="approx" aria-label={COPY.dashboard.approxAria}>~</span>{/if}{nextText}
+          </span>
+          {#if nextHint}<span class="countdown">{nextHint}</span>{/if}
         </dd>
+      </div>
+
+      <div class="row">
+        <dt><Icon name="leaf" size={18} /><span>{COPY.dashboard.rows.fertile}</span></dt>
+        <dd><span class="date">{fertileText}</span></dd>
+      </div>
+
+      <div class="row">
+        <dt><Icon name="ovum" size={18} /><span>{COPY.dashboard.rows.ovulation}</span></dt>
+        <dd><span class="date">{ovulationText}</span></dd>
+      </div>
+
+      <div class="row secondary-row">
+        <dt><Icon name="moon" size={18} /><span>{COPY.dashboard.rows.pms}</span></dt>
+        <dd><span class="date">{pmsText}</span></dd>
+      </div>
+
+      <div class="row secondary-row">
+        <dt><Icon name="droplet" size={18} /><span>{COPY.dashboard.rows.last}</span></dt>
+        <dd><span class="date">{lastText}</span></dd>
       </div>
     </dl>
 
-    {#if !stats.paused && (stats.nextStart || stats.nextRange)}
+    {#if showSafety}
       <p class="note">{COPY.dashboard.notes.estimate}</p>
     {/if}
   {/if}
@@ -153,11 +154,7 @@
 
 <style>
   .dash {
-    padding-top: 10px;
-  }
-
-  .hero {
-    margin-top: 2px;
+    padding-top: 16px;
   }
 
   .hero-row {
@@ -165,83 +162,214 @@
     align-items: flex-end;
     justify-content: space-between;
     gap: 12px;
+    flex-wrap: wrap;
   }
 
-  .status {
-    margin: 0 0 4px;
-    max-width: 18ch;
+  .day {
+    display: flex;
+    align-items: baseline;
+    gap: 4px;
+    margin: 0;
+  }
+
+  .num {
+    font-size: 52px;
+    line-height: 0.95;
+    font-weight: 600;
+    letter-spacing: -0.03em;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .unit {
     color: var(--muted);
     font-size: 16px;
-    text-align: right;
   }
 
-  .grid {
-    margin: 12px 0 0;
+  .phase {
+    margin-bottom: 4px;
+    padding: 4px 9px;
+    border-radius: 999px;
+    font-size: 13px;
+    font-weight: 600;
+    white-space: nowrap;
+  }
+
+  .phase.period {
+    background: var(--period-fill);
+    color: var(--on-period);
+  }
+
+  .phase.fertile {
+    background: var(--fertile-soft);
+    color: var(--ink);
+  }
+
+  .phase.ovulation,
+  .phase.pms {
+    background: var(--accent-soft);
+    color: var(--ink);
+  }
+
+  .phase.late {
+    color: var(--danger);
+    border: 1px solid var(--danger);
+  }
+
+  .phase.paused,
+  .phase.irregular,
+  .phase.luteal,
+  .phase.none {
+    background: var(--hover);
+    color: var(--muted);
+  }
+
+  .cycle-bar {
+    position: relative;
+    height: 8px;
+    margin: 16px 0 8px;
+    border-radius: 999px;
+    background: var(--line);
+  }
+
+  .seg {
+    position: absolute;
+    top: 0;
+    height: 8px;
+  }
+
+  .seg.period {
+    background: var(--period-fill);
+    border-radius: 999px 0 0 999px;
+  }
+
+  .seg.fertile {
+    background: var(--fertile-soft);
+  }
+
+  .seg.pms {
+    background: var(--accent-soft);
+  }
+
+  .mark {
+    position: absolute;
+    top: 50%;
+    transform: translate(-50%, -50%);
+  }
+
+  .mark.ovulation {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--accent);
+  }
+
+  .mark.today {
+    width: 2px;
+    height: 14px;
+    background: var(--ink);
+    z-index: 2;
+  }
+
+  .mark.next {
+    left: 100%;
+    width: 2px;
+    height: 8px;
+    background: var(--accent);
+  }
+
+  .rows {
+    margin: 8px 0 0;
     padding: 0;
+  }
+
+  .row {
     display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 8px 16px;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 12px;
+    min-height: 46px;
+    padding: 8px 0;
+    border-bottom: 1px solid var(--line);
   }
 
-  .cell {
-    min-width: 0;
-    padding-top: 6px;
-    border-top: 1px solid var(--line);
-  }
-
-  .cell.wide {
-    grid-column: 1 / -1;
+  .row:last-child {
+    border-bottom: 0;
   }
 
   dt {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+    color: var(--ink);
+    font-size: 14px;
+  }
+
+  dt :global(svg) {
+    flex: 0 0 auto;
     color: var(--muted);
-    font-size: 13px;
-    font-weight: 500;
   }
 
   dd {
-    margin: 4px 0 0;
+    margin: 0;
     min-width: 0;
     display: flex;
     flex-direction: column;
-    gap: 2px;
+    align-items: flex-end;
+    gap: 1px;
+    text-align: right;
   }
 
-  .value {
-    font-size: 16px;
-    font-weight: 600;
+  .date {
+    font-size: 15px;
+    font-weight: 500;
     line-height: 1.25;
     font-variant-numeric: tabular-nums;
     overflow-wrap: anywhere;
   }
 
-  .sub {
-    color: var(--muted);
-    font-size: 12.5px;
-    line-height: 1.35;
-  }
-
-  .note {
-    margin: 10px 0 0;
-    color: var(--muted);
-    font-size: 13px;
-    line-height: 1.45;
-  }
-
-  .empty {
-    margin-top: 26px;
-  }
-
-  .empty h2 {
-    margin: 0 0 6px;
-    font-size: 20px;
+  .next .date {
+    font-size: 18px;
     font-weight: 600;
   }
 
-  .empty p {
-    margin: 0;
+  .countdown {
     color: var(--muted);
-    font-size: 15px;
-    max-width: 34ch;
+    font-size: 12.5px;
+  }
+
+  .approx {
+    margin-right: 2px;
+    color: var(--muted);
+  }
+
+  .row.secondary-row dt,
+  .row.secondary-row .date {
+    color: var(--muted);
+  }
+
+  .row.secondary-row .date {
+    font-size: 14px;
+  }
+
+  .note {
+    margin: 12px 0 0;
+    color: var(--muted);
+    font-size: 12.5px;
+    line-height: 1.4;
+  }
+
+  .empty {
+    padding-top: 18px;
+  }
+
+  .empty h2 {
+    margin: 0 0 12px;
+    font-size: 22px;
+    font-weight: 600;
+  }
+
+  .empty .secondary {
+    min-width: 44px;
   }
 </style>

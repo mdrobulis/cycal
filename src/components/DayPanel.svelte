@@ -2,6 +2,7 @@
   import { onMount } from 'svelte';
   import { app } from '../lib/store.svelte';
   import { formatLongDay, weekdayName } from '../lib/date';
+  import { eventIcon } from '../lib/icon-names';
   import {
     FLOWS,
     MOODS,
@@ -11,23 +12,26 @@
     eventLabel,
   } from '../lib/vocab';
   import { COPY } from '../lib/strings';
-  import type { DayKey, Severity } from '../lib/types';
+  import type { DayEvent, DayKey, Severity } from '../lib/types';
   import Icon from './Icon.svelte';
 
   let { date, onClose }: { date: DayKey; onClose: () => void } = $props();
 
-  let dialog = $state<HTMLDialogElement>();
-  let panel = $state<null | 'symptom' | 'symptomOther' | 'mood' | 'flow' | 'note' | 'custom'>(
+  let panel = $state<HTMLElement>();
+  let panelOpen = $state<null | 'symptom' | 'symptomOther' | 'mood' | 'flow' | 'note' | 'custom'>(
     null,
   );
   let note = $state('');
   let customText = $state('');
   let symptomText = $state('');
+  let editingId = $state<string | null>(null);
+  let editDraft = $state('');
   let error = $state<string | null>(null);
   let busy = $state(false);
   let noteInput = $state<HTMLTextAreaElement>();
   let customInput = $state<HTMLInputElement>();
   let symptomInput = $state<HTMLInputElement>();
+  let editInput = $state<HTMLTextAreaElement | HTMLInputElement>();
 
   const events = $derived(app.eventsForDay(date));
   const active = $derived(app.activePeriod);
@@ -40,22 +44,30 @@
   const currentFlow = $derived(events.find((event) => event.kind === 'flow'));
 
   onMount(() => {
-    if (dialog && !dialog.open) dialog.showModal();
-    const previous = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
-    return () => {
-      document.body.style.overflow = previous;
-    };
+    const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    panel?.focus({ preventScroll: true });
+    panel?.scrollIntoView({ block: 'nearest', behavior: reduce ? 'auto' : 'smooth' });
   });
 
   $effect(() => {
-    if (panel === 'note') noteInput?.focus();
-    else if (panel === 'custom') customInput?.focus();
-    else if (panel === 'symptomOther') symptomInput?.focus();
+    if (panelOpen === 'note') noteInput?.focus();
+    else if (panelOpen === 'custom') customInput?.focus();
+    else if (panelOpen === 'symptomOther') symptomInput?.focus();
   });
 
+  $effect(() => {
+    if (editingId) editInput?.focus();
+  });
+
+  function onKeydown(event: KeyboardEvent): void {
+    if (event.key === 'Escape') {
+      event.stopPropagation();
+      onClose();
+    }
+  }
+
   function close(): void {
-    dialog?.close();
+    onClose();
   }
 
   async function run(task: () => Promise<unknown>): Promise<void> {
@@ -71,15 +83,15 @@
     }
   }
 
-  function togglePanel(next: typeof panel): void {
+  function togglePanel(next: typeof panelOpen): void {
     error = null;
-    panel = panel === next ? null : next;
+    panelOpen = panelOpen === next ? null : next;
   }
 
   function addSymptom(label: string): void {
     void run(async () => {
       await app.addSymptom(date, label);
-      panel = null;
+      panelOpen = null;
     });
   }
 
@@ -88,21 +100,21 @@
     void run(async () => {
       await app.addSymptom(date, value);
       symptomText = '';
-      panel = null;
+      panelOpen = null;
     });
   }
 
   function chooseMood(value: number): void {
     void run(async () => {
       await app.setMood(date, value);
-      panel = null;
+      panelOpen = null;
     });
   }
 
   function chooseFlow(value: 'light' | 'medium' | 'heavy'): void {
     void run(async () => {
       await app.setFlow(date, value);
-      panel = null;
+      panelOpen = null;
     });
   }
 
@@ -111,7 +123,7 @@
     void run(async () => {
       await app.addNote(date, value);
       note = '';
-      panel = null;
+      panelOpen = null;
     });
   }
 
@@ -120,7 +132,7 @@
     void run(async () => {
       await app.addCustom(date, value);
       customText = '';
-      panel = null;
+      panelOpen = null;
     });
   }
 
@@ -128,20 +140,48 @@
     const event = events.find((candidate) => candidate.id === eventId);
     if (event) void run(() => app.updateSeverity(event, severity));
   }
+
+  function startEdit(event: DayEvent): void {
+    error = null;
+    editingId = event.id;
+    editDraft = event.kind === 'note' ? event.note ?? '' : event.label ?? '';
+  }
+
+  function cancelEdit(): void {
+    editingId = null;
+    editDraft = '';
+    error = null;
+  }
+
+  function saveEdit(event: DayEvent): void {
+    const value = editDraft.trim();
+    if (!value) {
+      error = event.kind === 'note' ? COPY.errors.writeText : COPY.errors.nameEvent;
+      return;
+    }
+    void run(async () => {
+      if (event.kind === 'note') {
+        await app.updateEvent({ ...event, note: value });
+      } else if (event.kind === 'custom') {
+        await app.updateEvent({ ...event, label: value });
+      }
+      editingId = null;
+      editDraft = '';
+    });
+  }
 </script>
 
-<dialog
-  class="sheet"
-  bind:this={dialog}
-  onclose={onClose}
-  onclick={(event) => {
-    if (event.target === dialog) close();
-  }}
-  aria-labelledby="day-title"
+<svelte:window onkeydown={onKeydown} />
+
+<section
+  class="day-panel"
+  bind:this={panel}
+  aria-labelledby="day-panel-title"
+  tabindex="-1"
 >
-  <div class="sheet-head">
+  <div class="panel-head">
     <div>
-      <h2 id="day-title" class="sheet-title">{formatLongDay(date)}</h2>
+      <h2 id="day-panel-title" class="panel-title">{formatLongDay(date)}</h2>
       <p class="weekday">{weekdayName(date)}</p>
     </div>
     <button class="icon-btn" aria-label={COPY.common.close} onclick={close}>
@@ -149,7 +189,7 @@
     </button>
   </div>
 
-  <div class="sheet-body">
+  <div class="panel-body">
     {#if error}
       <p class="error" role="alert">{error}</p>
     {/if}
@@ -181,21 +221,65 @@
     {:else}
       {#each events as event (event.id)}
         {@const detail = eventDetail(event)}
+        {@const icon = eventIcon(event.kind)}
         <div class="event">
           <div class="event-main">
-            <p class="event-label">{eventLabel(event)}</p>
+            <p class="event-label">
+              {#if icon}<Icon name={icon} size={16} />{/if}
+              <span>{eventLabel(event)}</span>
+            </p>
             {#if detail}
               <p class="event-detail">{detail}</p>
             {/if}
           </div>
-          <button
-            class="icon-btn"
-            aria-label={COPY.sheet.deleteAria(eventLabel(event))}
-            onclick={() => run(() => app.removeEvent(event.id))}
-          >
-            <Icon name="trash" size={18} />
-          </button>
+          <div class="event-actions">
+            {#if event.kind === 'note' || event.kind === 'custom'}
+              <button
+                class="icon-btn"
+                aria-label={COPY.sheet.editAria(eventLabel(event))}
+                onclick={() => startEdit(event)}
+              >
+                <Icon name="pencil" size={18} />
+              </button>
+            {/if}
+            <button
+              class="icon-btn"
+              aria-label={COPY.sheet.deleteAria(eventLabel(event))}
+              onclick={() => run(() => app.removeEvent(event.id))}
+            >
+              <Icon name="trash" size={18} />
+            </button>
+          </div>
         </div>
+
+        {#if editingId === event.id}
+          <div class="edit-box">
+            {#if event.kind === 'note'}
+              <label class="field-label" for="edit-text">{COPY.sheet.noteLabel}</label>
+              <textarea
+                id="edit-text"
+                bind:this={editInput}
+                bind:value={editDraft}
+                placeholder={COPY.sheet.notePlaceholder}
+              ></textarea>
+            {:else}
+              <label class="field-label" for="edit-text">{COPY.sheet.customLabel}</label>
+              <input
+                id="edit-text"
+                bind:this={editInput}
+                bind:value={editDraft}
+                placeholder={COPY.sheet.customPlaceholder}
+              />
+            {/if}
+            <div class="edit-actions">
+              <button class="secondary" onclick={() => saveEdit(event)}>
+                {COPY.sheet.save}
+              </button>
+              <button class="link-button" onclick={cancelEdit}>{COPY.common.cancel}</button>
+            </div>
+          </div>
+        {/if}
+
         {#if event.kind === 'symptom'}
           <div class="severity" role="group" aria-label={COPY.sheet.severityAria(eventLabel(event))}>
             {#each SEVERITIES as option (option.value)}
@@ -240,17 +324,19 @@
         <button class="add" onclick={() => togglePanel('custom')}>{COPY.sheet.custom}</button>
       </div>
 
-      {#if panel === 'symptom'}
+      {#if panelOpen === 'symptom'}
         <div class="panel">
-          <p class="panel-title">{COPY.sheet.symptomLabel}</p>
+          <p class="panel-subtitle">{COPY.sheet.symptomLabel}</p>
           <div class="chips">
             {#each SYMPTOMS as symptom (symptom)}
               <button class="chip" onclick={() => addSymptom(symptom)}>{symptom}</button>
             {/each}
-            <button class="chip" onclick={() => (panel = 'symptomOther')}>{COPY.sheet.symptomOther}</button>
+            <button class="chip" onclick={() => (panelOpen = 'symptomOther')}>
+              {COPY.sheet.symptomOther}
+            </button>
           </div>
         </div>
-      {:else if panel === 'symptomOther'}
+      {:else if panelOpen === 'symptomOther'}
         <div class="panel">
           <label class="field-label" for="symptom-text">{COPY.sheet.symptomLabel}</label>
           <input
@@ -261,9 +347,9 @@
           />
           <button class="secondary" onclick={saveSymptomOther}>{COPY.sheet.addSymptom}</button>
         </div>
-      {:else if panel === 'mood'}
+      {:else if panelOpen === 'mood'}
         <div class="panel">
-          <p class="panel-title">{COPY.sheet.mood}</p>
+          <p class="panel-subtitle">{COPY.sheet.mood}</p>
           <div class="chips">
             {#each MOODS as mood, index (mood)}
               <button
@@ -276,9 +362,9 @@
             {/each}
           </div>
         </div>
-      {:else if panel === 'flow'}
+      {:else if panelOpen === 'flow'}
         <div class="panel">
-          <p class="panel-title">{COPY.sheet.flow}</p>
+          <p class="panel-subtitle">{COPY.sheet.flow}</p>
           <div class="chips">
             {#each FLOWS as flow (flow.value)}
               <button
@@ -291,7 +377,7 @@
             {/each}
           </div>
         </div>
-      {:else if panel === 'note'}
+      {:else if panelOpen === 'note'}
         <div class="panel">
           <label class="field-label" for="note-text">{COPY.sheet.noteLabel}</label>
           <textarea
@@ -302,7 +388,7 @@
           ></textarea>
           <button class="secondary" onclick={saveNote}>{COPY.sheet.addNote}</button>
         </div>
-      {:else if panel === 'custom'}
+      {:else if panelOpen === 'custom'}
         <div class="panel">
           <label class="field-label" for="custom-text">{COPY.sheet.customLabel}</label>
           <input
@@ -316,13 +402,50 @@
       {/if}
     </div>
   </div>
-
-  <div class="sheet-foot">
-    <button class="primary" onclick={close}>{COPY.common.done}</button>
-  </div>
-</dialog>
+</section>
 
 <style>
+  .day-panel {
+    margin-top: 14px;
+    padding: 14px 16px 18px;
+    border: 1px solid var(--line-strong);
+    border-radius: 16px;
+    background: var(--surface);
+    scroll-margin-top: calc(68px + var(--safe-top));
+    scroll-margin-bottom: calc(104px + var(--safe-bottom));
+  }
+
+  .day-panel:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+
+  .panel-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 8px;
+    margin-bottom: 10px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid var(--line);
+  }
+
+  .panel-title {
+    margin: 0;
+    font-size: 18px;
+    font-weight: 600;
+  }
+
+  .weekday {
+    margin: 2px 0 0;
+    color: var(--muted);
+    font-size: 13px;
+  }
+
+  .panel-body {
+    min-width: 0;
+  }
+
   .period-row {
     display: flex;
     flex-wrap: wrap;
@@ -356,9 +479,21 @@
     border-bottom: 0;
   }
 
+  .event-main {
+    min-width: 0;
+  }
+
   .event-label {
+    display: flex;
+    align-items: center;
+    gap: 7px;
     margin: 0;
     font-size: 16px;
+  }
+
+  .event-label :global(svg) {
+    flex: 0 0 auto;
+    color: var(--muted);
   }
 
   .event-detail {
@@ -368,8 +503,40 @@
     white-space: pre-wrap;
   }
 
+  .event-actions {
+    display: flex;
+    flex: 0 0 auto;
+    gap: 0;
+  }
+
+  .event-actions .icon-btn {
+    width: 44px;
+    height: 44px;
+    flex-basis: 44px;
+  }
+
+  .edit-box {
+    margin: 0 0 10px;
+    padding: 12px;
+    border-radius: var(--radius);
+    background: var(--bg);
+  }
+
+  .edit-box textarea,
+  .edit-box input {
+    width: 100%;
+  }
+
+  .edit-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 8px;
+  }
+
   .severity {
     display: flex;
+    flex-wrap: wrap;
     gap: 6px;
     margin: 0 0 8px;
   }
@@ -433,7 +600,7 @@
     background: var(--bg);
   }
 
-  .panel-title {
+  .panel-subtitle {
     margin: 0 0 8px;
     color: var(--muted);
     font-size: 13px;
@@ -472,11 +639,5 @@
     margin: 10px 0;
     color: var(--muted);
     font-size: 14px;
-  }
-
-  .weekday {
-    margin: 2px 0 0;
-    color: var(--muted);
-    font-size: 13px;
   }
 </style>
