@@ -118,12 +118,25 @@ await openCalendar(page);
 await page.screenshot({ path: `${OUT}/calendar-light-390.png`, fullPage: true });
 report.calendar390 = await metrics(page);
 
-await page.locator(`.cal-day[data-value="${offsetKey(-2)}"]`).click();
+await page.locator(`.cal-day[data-value="${offsetKey(-13)}"]`).click();
 await page.locator('.day-panel').waitFor();
 await page.evaluate(() => window.scrollTo({ top: 0 }));
 await page.waitForTimeout(150);
 await page.screenshot({ path: `${OUT}/day-panel-390.png`, fullPage: true });
 await page.locator('.day-panel').getByRole('button', { name: 'Uždaryti' }).click();
+
+await page.getByRole('tab', { name: 'Šiandien' }).click();
+await page.getByRole('button', { name: 'Pažymėti mėnesines' }).click();
+await page.locator('.active-period').waitFor();
+await page.getByRole('button', { name: 'Keisti' }).click();
+await page.getByRole('group', { name: 'Kraujavimo intensyvumas' }).waitFor();
+await page.getByRole('group', { name: 'Kraujavimo intensyvumas' })
+  .getByRole('button', { name: 'Vidutinis', exact: true })
+  .click();
+await page.locator('.day-panel').getByRole('button', { name: 'Uždaryti' }).click();
+await page.getByRole('tab', { name: 'Šiandien' }).click();
+await page.waitForTimeout(100);
+await page.screenshot({ path: `${OUT}/active-period-390.png`, fullPage: true });
 
 await page.getByRole('button', { name: 'Nustatymai' }).click();
 await page.screenshot({ path: `${OUT}/settings-390.png`, fullPage: true });

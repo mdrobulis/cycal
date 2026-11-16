@@ -1,5 +1,5 @@
 import { diffDays } from './date';
-import type { CycleStats, DayKey } from './types';
+import type { CycleStats, DayKey, DayRange } from './types';
 
 export type CyclePhase =
   | 'period'
@@ -12,7 +12,14 @@ export type CyclePhase =
   | 'irregular'
   | 'none';
 
-function inRange(day: DayKey, range?: { from: DayKey; to: DayKey }): boolean {
+export type CountdownState = 'future' | 'today' | 'past' | 'late' | 'none';
+
+export interface Countdown {
+  state: CountdownState;
+  days?: number;
+}
+
+function inRange(day: DayKey, range?: DayRange): boolean {
   return Boolean(range && day >= range.from && day <= range.to);
 }
 
@@ -36,54 +43,45 @@ export function cyclePhase(stats: CycleStats, today: DayKey): CyclePhase {
   return 'none';
 }
 
-export interface CycleBarSegment {
-  from: number;
-  to: number;
+/** Days from today to one predicted day. */
+export function dayCountdown(today: DayKey, target?: DayKey): Countdown {
+  if (!target) return { state: 'none' };
+  const days = diffDays(today, target);
+  if (days > 0) return { state: 'future', days };
+  if (days === 0) return { state: 'today' };
+  return { state: 'past' };
 }
 
-export interface CycleBar {
-  length: number;
-  period: CycleBarSegment;
-  fertile?: CycleBarSegment;
-  pms?: CycleBarSegment;
-  ovulation?: number;
-  today?: number;
-  next: number;
+/** Days from today to the start of a predicted range. */
+export function rangeCountdown(today: DayKey, range?: DayRange): Countdown {
+  if (!range) return { state: 'none' };
+  const toStart = diffDays(today, range.from);
+  const toEnd = diffDays(today, range.to);
+  if (toStart > 0) return { state: 'future', days: toStart };
+  if (toEnd < 0) return { state: 'past' };
+  return { state: 'today' };
 }
 
 /**
- * Percent positions for the thin current-cycle bar. Ranges are inclusive on
- * both ends, so the end day adds one day of width. Returns null when the cycle
- * cannot be drawn honestly (no exact next start, paused, irregular, late or
- * built from the default length).
+ * Countdown to the next predicted period. A past next-start or a past range
+ * window is reported as late, with the number of overdue days.
  */
-export function cycleBar(stats: CycleStats): CycleBar | null {
-  if (!stats.lastStart || !stats.nextStart) return null;
-  if (stats.paused || stats.irregular || stats.daysLate || stats.usingDefault) return null;
+export function nextPeriodCountdown(stats: CycleStats, today: DayKey): Countdown {
+  if (stats.nextStart) {
+    const countdown = dayCountdown(today, stats.nextStart);
+    if (countdown.state === 'past') {
+      return { state: 'late', days: diffDays(stats.nextStart, today) };
+    }
+    return countdown;
+  }
 
-  const start = stats.lastStart;
-  const length = diffDays(start, stats.nextStart);
-  if (length < 10) return null;
+  if (stats.nextRange) {
+    const countdown = rangeCountdown(today, stats.nextRange);
+    if (countdown.state === 'past') {
+      return { state: 'late', days: diffDays(stats.nextRange.to, today) };
+    }
+    return countdown;
+  }
 
-  const clamp = (value: number): number => Math.min(100, Math.max(0, value));
-  const at = (day: DayKey, inclusiveEnd = false): number =>
-    clamp(((diffDays(start, day) + (inclusiveEnd ? 1 : 0)) / length) * 100);
-
-  const periodLength = Math.min(
-    stats.lastPeriod?.length ?? stats.periodLengthForPrediction,
-    length,
-  );
-  const period = { from: 0, to: clamp((periodLength / length) * 100) };
-  const fertile = stats.fertileRange
-    ? { from: at(stats.fertileRange.from), to: at(stats.fertileRange.to, true) }
-    : undefined;
-  const pms = stats.pmsRange
-    ? { from: at(stats.pmsRange.from), to: at(stats.pmsRange.to, true) }
-    : undefined;
-  const ovulation = stats.ovulation ? at(stats.ovulation) : undefined;
-  const today = stats.cycleDay
-    ? clamp(((stats.cycleDay - 0.5) / length) * 100)
-    : undefined;
-
-  return { length, period, fertile, pms, ovulation, today, next: 100 };
+  return { state: 'none' };
 }

@@ -1,9 +1,13 @@
 import { readFile } from 'node:fs/promises';
 import { expect, test, type Page } from '@playwright/test';
 import { COPY, ltCount } from '../src/lib/strings';
-import { SYMPTOMS } from '../src/lib/vocab';
+import { FLOWS, SYMPTOMS } from '../src/lib/vocab';
 
 const SYMPTOM = SYMPTOMS[0]!;
+const MEDIUM = FLOWS.find((flow) => flow.value === 'medium')!.label;
+const HEAVY = FLOWS.find((flow) => flow.value === 'heavy')!.label;
+const LIGHT = FLOWS.find((flow) => flow.value === 'light')!.label;
+const OLD_STILL = 'Dar kraujuoji';
 
 function collectErrors(page: Page): string[] {
   const errors: string[] = [];
@@ -15,7 +19,13 @@ function collectErrors(page: Page): string[] {
 }
 
 function currentDayKey(): string {
+  return offsetDayKey(0);
+}
+
+function offsetDayKey(days: number): string {
   const now = new Date();
+  now.setHours(12, 0, 0, 0);
+  now.setDate(now.getDate() + days);
   const month = String(now.getMonth() + 1).padStart(2, '0');
   const day = String(now.getDate()).padStart(2, '0');
   return `${now.getFullYear()}-${month}-${day}`;
@@ -35,7 +45,9 @@ async function closePanel(page: Page): Promise<void> {
   await expect(page.locator('.day-panel')).toHaveCount(0);
 }
 
-test('pirmas paleidimas: mėnesinės, skirtukai ir dienos įrašai išlieka', async ({ page }) => {
+test('pirmas paleidimas: vienas kraujavimo valdiklis ir dienos įrašai išlieka', async ({
+  page,
+}) => {
   const errors = collectErrors(page);
   const day = currentDayKey();
   const cell = page.locator(`.cal-day[data-value="${day}"]`);
@@ -46,18 +58,44 @@ test('pirmas paleidimas: mėnesinės, skirtukai ir dienos įrašai išlieka', as
   await expect(page.locator('#calendar-panel')).toBeHidden();
 
   await page.getByRole('button', { name: COPY.app.markPeriod }).click();
-  await expect(page.getByRole('button', { name: COPY.period.still })).toBeVisible();
   await expect(page.getByText(COPY.period.day(1), { exact: true })).toBeVisible();
+  await expect(page.locator('.count')).toHaveCount(4);
+  await expect(page.locator('.count-value').first()).toContainText('28');
+  await expect(page.locator('.count-date').first()).toBeVisible();
+  await expect(page.getByRole('button', { name: OLD_STILL })).toHaveCount(0);
+  await expect(page.getByText(COPY.bleeding.unmarked, { exact: true })).toBeVisible();
+  await expect(page.getByRole('group', { name: COPY.bleeding.aria })).toHaveCount(0);
 
-  await openCalendar(page);
+  await page.getByRole('button', { name: COPY.bleeding.change }).click();
   await expect(tab(page, 'calendar')).toHaveAttribute('aria-selected', 'true');
-  await cell.click();
   await expect(page.locator('.day-panel')).toBeVisible();
   await expect(page.getByRole('dialog')).toHaveCount(0);
+  await expect(page.getByRole('group', { name: COPY.bleeding.aria })).toHaveCount(1);
 
   const calendarBox = await page.locator('.calendar').boundingBox();
   const panelBox = await page.locator('.day-panel').boundingBox();
   expect(panelBox!.y).toBeGreaterThanOrEqual(calendarBox!.y + calendarBox!.height - 1);
+
+  const bleeding = page.getByRole('group', { name: COPY.bleeding.aria });
+  await bleeding.getByRole('button', { name: MEDIUM, exact: true }).click();
+  await expect(
+    bleeding.getByRole('button', { name: MEDIUM, exact: true }),
+  ).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.locator('.event-detail')).toHaveText(MEDIUM);
+  await expect(page.locator('.active-period')).toContainText(MEDIUM);
+  await expect(page.getByRole('button', { name: COPY.sheet.flow, exact: true })).toHaveCount(0);
+
+  await bleeding.getByRole('button', { name: HEAVY, exact: true }).click();
+  await expect(
+    bleeding.getByRole('button', { name: HEAVY, exact: true }),
+  ).toHaveAttribute('aria-pressed', 'true');
+  await expect(
+    bleeding.getByRole('button', { name: MEDIUM, exact: true }),
+  ).toHaveAttribute('aria-pressed', 'false');
+  await expect(page.locator('.event-detail')).toHaveText(HEAVY);
+  await expect(page.locator('.event-label').filter({ hasText: COPY.sheet.flow })).toHaveCount(1);
+  await bleeding.getByRole('button', { name: MEDIUM, exact: true }).click();
+  await expect(page.locator('.event-detail')).toHaveText(MEDIUM);
 
   await tab(page, 'today').click();
   await expect(page.locator('.day-panel')).toBeHidden();
@@ -67,8 +105,9 @@ test('pirmas paleidimas: mėnesinės, skirtukai ir dienos įrašai išlieka', as
   await page.getByRole('button', { name: COPY.sheet.symptom, exact: true }).click();
   await page.getByRole('button', { name: SYMPTOM, exact: true }).click();
   await expect(page.locator('.event-label').filter({ hasText: SYMPTOM })).toBeVisible();
-  await expect(cell.locator('.event-icons svg')).toHaveCount(1);
+  await expect(cell.locator('.event-icons svg')).toHaveCount(2);
   await expect(page.locator('.cal-legend')).toContainText(COPY.sheet.symptom);
+  await expect(page.locator('.cal-legend')).toContainText(COPY.sheet.flow);
 
   await page.getByRole('button', { name: COPY.sheet.deleteAria(SYMPTOM) }).click();
   await expect(page.getByText(COPY.sheet.undoMessage)).toBeVisible();
@@ -77,15 +116,81 @@ test('pirmas paleidimas: mėnesinės, skirtukai ir dienos įrašai išlieka', as
 
   await closePanel(page);
   await expect(cell).toBeFocused();
+  await expect(page.getByRole('group', { name: COPY.bleeding.aria })).toHaveCount(0);
   await cell.click();
   await expect(page.locator('.day-panel')).toBeVisible();
   await closePanel(page);
 
   await page.reload();
   await expect(tab(page, 'today')).toHaveAttribute('aria-selected', 'true');
+  await expect(page.locator('.active-period')).toContainText(MEDIUM);
   await openCalendar(page);
-  await expect(cell.locator('.event-icons svg')).toHaveCount(1);
+  await expect(cell.locator('.event-icons svg')).toHaveCount(2);
   expect(errors).toEqual([]);
+});
+
+test('aktyvią dieną be patvirtinimo galima pažymėti intensyvumu', async ({ page }) => {
+  const yesterday = offsetDayKey(-1);
+  const today = currentDayKey();
+  await page.goto('/');
+  await page.evaluate(async (date) => {
+    const db = await new Promise<IDBDatabase>((resolve, reject) => {
+      const request = indexedDB.open('cycal');
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error);
+    });
+    const transaction = db.transaction('events', 'readwrite');
+    transaction.objectStore('events').put({
+      id: 'seed-open-period',
+      date,
+      kind: 'period-start',
+      createdAt: new Date().toISOString(),
+    });
+    await new Promise((resolve, reject) => {
+      transaction.oncomplete = () => resolve();
+      transaction.onerror = () => reject(transaction.error);
+    });
+    db.close();
+  }, yesterday);
+  await page.reload();
+
+  await expect(page.locator('.active-period')).toBeVisible();
+  await expect(page.getByText(COPY.bleeding.unmarked, { exact: true })).toBeVisible();
+  await page.getByRole('button', { name: COPY.bleeding.change }).click();
+  const bleeding = page.getByRole('group', { name: COPY.bleeding.aria });
+  await bleeding.getByRole('button', { name: MEDIUM, exact: true }).click();
+  await expect(
+    bleeding.getByRole('button', { name: MEDIUM, exact: true }),
+  ).toHaveAttribute('aria-pressed', 'true');
+
+  const stored = await page.evaluate(async () => {
+    const db = await new Promise<IDBDatabase>((resolve, reject) => {
+      const request = indexedDB.open('cycal');
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error);
+    });
+    const events = await new Promise<Array<{ date: string; kind: string; value?: string }>>(
+      (resolve, reject) => {
+        const transaction = db.transaction('events', 'readonly');
+        const request = transaction.objectStore('events').getAll();
+        request.onsuccess = () =>
+          resolve(request.result as Array<{ date: string; kind: string; value?: string }>);
+        request.onerror = () => reject(request.error);
+      },
+    );
+    db.close();
+    return events;
+  });
+
+  expect(
+    stored.some((event) => event.date === today && event.kind === 'period-day'),
+  ).toBe(true);
+  expect(
+    stored.some(
+      (event) =>
+        event.date === today && event.kind === 'flow' && event.value === 'medium',
+    ),
+  ).toBe(true);
 });
 
 test('dienos panelė leidžia redaguoti pastabą, o kalendorius lieka matomas', async ({ page }) => {
@@ -149,7 +254,7 @@ test('veikia neprisijungus po pirmo apsilankymo', async ({ page, context }) => {
 test('prognozių režimą galima pristabdyti, ir tai išlieka po perkrovimo', async ({ page }) => {
   await page.goto('/');
   await page.getByRole('button', { name: COPY.app.markPeriod }).click();
-  await page.getByRole('button', { name: COPY.period.ended }).click();
+  await page.getByRole('button', { name: COPY.period.ended, exact: true }).click();
   await page.getByRole('button', { name: COPY.common.settings }).click();
   await page.getByRole('button', { name: COPY.settings.modes.paused.label, exact: true }).click();
   await page.getByRole('button', { name: COPY.common.back, exact: true }).click();
@@ -177,15 +282,22 @@ test('eksportuoja prognozes į .ics failą', async ({ page }) => {
   expect(text).not.toContain('undefined');
 });
 
-test('„Dar kraujuoji“ palieka mėnesines atviras, „Baigėsi“ uždaro', async ({ page }) => {
+test('intensyvumas pažymi kraujavimą, o „Baigėsi“ uždaro mėnesines', async ({ page }) => {
   await page.goto('/');
   await page.getByRole('button', { name: COPY.app.markPeriod }).click();
-  await page.getByRole('button', { name: COPY.period.still }).click();
-  await expect(page.getByRole('button', { name: COPY.period.still })).toBeVisible();
+  await expect(page.getByRole('button', { name: OLD_STILL })).toHaveCount(0);
+  await page.getByRole('button', { name: COPY.bleeding.change }).click();
 
-  await page.getByRole('button', { name: COPY.period.ended }).click();
+  const bleeding = page.getByRole('group', { name: COPY.bleeding.aria });
+  await bleeding.getByRole('button', { name: HEAVY, exact: true }).click();
+  await expect(
+    bleeding.getByRole('button', { name: HEAVY, exact: true }),
+  ).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.locator('.event-detail')).toHaveText(HEAVY);
+
+  await page.getByRole('button', { name: COPY.period.ended, exact: true }).click();
   await expect(page.getByRole('button', { name: COPY.app.markPeriod })).toBeVisible();
-  await expect(page.getByRole('button', { name: COPY.period.still })).toHaveCount(0);
+  await expect(page.locator('.event-detail')).toHaveText(HEAVY);
 });
 
 test('skirtukus galima perjungti klaviatūra, o dienos panelę atidaryti ir uždaryti Escape', async ({
@@ -220,6 +332,11 @@ test('leidžia įrašyti praeityje ir neleidžia mėnesinių ateityje', async ({
   await page.locator('.cal-day[data-value="2024-10-15"]').click();
   await expect(page.locator('.day-panel')).toBeVisible();
   await page.getByRole('button', { name: COPY.period.started }).click();
+  const bleeding = page.getByRole('group', { name: COPY.bleeding.aria });
+  await bleeding.getByRole('button', { name: LIGHT, exact: true }).click();
+  await expect(
+    bleeding.getByRole('button', { name: LIGHT, exact: true }),
+  ).toHaveAttribute('aria-pressed', 'true');
   await closePanel(page);
 
   const stored = await page.evaluate(async () => {
@@ -228,12 +345,12 @@ test('leidžia įrašyti praeityje ir neleidžia mėnesinių ateityje', async ({
       request.onsuccess = () => resolve(request.result);
       request.onerror = () => reject(request.error);
     });
-    const events = await new Promise<Array<{ date: string; kind: string }>>(
+    const events = await new Promise<Array<{ date: string; kind: string; value?: string }>>(
       (resolve, reject) => {
         const transaction = db.transaction('events', 'readonly');
         const request = transaction.objectStore('events').getAll();
         request.onsuccess = () =>
-          resolve(request.result as Array<{ date: string; kind: string }>);
+          resolve(request.result as Array<{ date: string; kind: string; value?: string }>);
         request.onerror = () => reject(request.error);
       },
     );
@@ -242,6 +359,12 @@ test('leidžia įrašyti praeityje ir neleidžia mėnesinių ateityje', async ({
   });
   expect(
     stored.some((event) => event.date === '2024-10-15' && event.kind === 'period-start'),
+  ).toBe(true);
+  expect(
+    stored.some(
+      (event) =>
+        event.date === '2024-10-15' && event.kind === 'flow' && event.value === 'light',
+    ),
   ).toBe(true);
 
   await year.selectOption({ label: '2027' });
@@ -318,5 +441,5 @@ test('eksportuoja, ištrina ir atkuria atsarginę kopiją', async ({ page }) => 
   ).toBeVisible();
 
   await page.getByRole('button', { name: COPY.common.back, exact: true }).click();
-  await expect(page.getByRole('button', { name: COPY.period.still })).toBeVisible();
+  await expect(page.getByRole('button', { name: COPY.bleeding.change })).toBeVisible();
 });

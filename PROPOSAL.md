@@ -7,6 +7,8 @@ Proposal v0.1 · 13 Nov 2026 · implemented 16 Nov 2026 · single user, single d
 > **v1.1 UI pass (16 Nov 2026):** the UI is now Lithuanian, with a higher-contrast palette and a dated calendar summary. The original “English UI” wording in §1 is historical; see §10.
 >
 > **v2 UI pass (16 Nov 2026):** Today and Calendar are separate tabs; the dashboard is a glance view; the calendar uses event icons; day records open below it; and past cycles are editable. See §11.
+>
+> **v3 UI pass (16 Nov 2026):** Today is a countdown board and bleeding uses one intensity control. See §12.
 
 **The job, in the user's words:** *"Check where I am in my cycle, and note what happened today."*
 
@@ -181,3 +183,12 @@ Screenshots: [`screenshots/`](screenshots/). Verification: 64 unit tests, 9 Play
 Today and Calendar are now one-tap tabs. Today keeps the six values but presents them as a cycle day + phase, a thin cycle bar, and five icon/date rows; the prose sublines are gone. The calendar drops the dated summary for a compact legend and small event-kind icons (symptom, mood, flow, intimacy, note, custom). Tapping a day opens its records in an inline panel below the calendar instead of a modal, with focus/scroll handling and no body lock. Past cycles can be added, edited and deleted in `Ciklų istorija`; notes and custom records are editable in place. Validation protects overlaps, ordering, future dates and open periods, and predictions recalculate from the edited events.
 
 No IndexedDB, backup, settings, URL or QR changes. Verification: 76 unit tests, 11 browser flows, 62.3 KB gzip JS, 4.6 KB gzip CSS. Real iOS install/safe-area/screen-reader behaviour and ICS import remain untested.
+
+
+## 12. v3 UI update — 16 Nov 2026
+
+The Today tab is now a countdown board: cycle day and phase are compact context, and four tiles give the days left to the next period, fertile window, ovulation and PMS as the large numbers. Dates and ranges are 12 px muted notes; last period is a small footer. `Dabar` means the phase is active, `—` means it has passed or is unavailable, and a late period shows overdue days plus a `vėluoja` note. The cycle bar was removed.
+
+Bleeding now has one entry path: a three-level intensity control in the day panel (`Lengvas`, `Vidutinis`, `Stiprus`) records the bleeding day and flow together. The active card only displays the current level, opens that one control with `Keisti`, and keeps `Baigėsi` for ending the period. The old `Dar kraujuoji` and standalone `Kraujavimas` actions and the internal duplicate record row are gone.
+
+No IndexedDB, backup, settings, URL or QR changes. Verification: 82 unit tests, 12 browser flows, 62.7 KB gzip JS, 4.5 KB gzip CSS. Real iOS safe-area/screen-reader behaviour and ICS import remain untested.

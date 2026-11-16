@@ -5,6 +5,8 @@ Status: v4 · implemented and verified 16 Nov 2026
 > **v1.1 UI pass (16 Nov 2026):** the shipped UI is now Lithuanian, the palette and calendar marks were reworked for contrast, and the calendar gained a dated summary of the visible month. The original "English UI" decision and §11 build numbers are historical; see §12.
 >
 > **v2 UI pass (16 Nov 2026):** dashboard and calendar are now separate tabs, the dashboard is a glance view with a cycle bar, the calendar uses event icons and a compact legend, day records open below the calendar, and past cycles can be added/edited/deleted. See §13.
+>
+> **v3 UI pass (16 Nov 2026):** the dashboard is now a countdown board (large days-left numbers, small date notes, no cycle bar), and bleeding is recorded through one intensity control in the day panel. See §14.
 
 A local-only **Vite + Svelte 5 SPA PWA** for one person, with the month grid built on **Bits UI Calendar** and styled entirely from our own tokens. No account, no backend, no telemetry.
 
@@ -397,3 +399,14 @@ The v1 mechanics, schema, URLs and QR stayed unchanged. This pass changed presen
 **Verification.** `svelte-check` clean; 76 unit tests in 7 files; 11 Playwright flows; build **62.3 KB gzip JS**, 4.6 KB gzip CSS, 15 precached files (221 KiB). 390 and 320 px have no horizontal overflow, tabs and controls are 44 px, and the calendar month fits above the action bar. Screenshots cover Today/Calendar light and dark, 320 px, the inline day panel, settings, and the history editor.
 
 **Data and deployment.** No IndexedDB, backup, settings, URL or QR changes. Existing data and backups remain valid. The Pages workflow and live URL are unchanged. Real iOS install/safe-area/screen-reader output and ICS import remain untested.
+
+
+## 14. v3 UI pass — 16 Nov 2026
+
+**Countdown dashboard.** Today now leads with compact cycle day/phase context, then a 2×2 grid for `Kitos mėnesinės`, `Vaisingos`, `Ovuliacija` and `PMS`. The large element in each tile is the number of days to the phase start (44 px); the date/range is a 12 px muted note. `Dabar` marks a phase in progress; `—` marks a past phase or missing estimate; a late period shows the overdue day count, a small `vėluoja` note and the `Vėluoja` phase pill. The cycle bar and its `cycleBar` helper/tests were removed. Last period is a 12 px footer. Counts are to the current cycle’s predicted dates; passed phases are not rolled forward to the next cycle.
+
+**Bleeding.** The duplicate `Dar kraujuoji` and standalone `Kraujavimas` actions were removed. One `BleedingControl` in the day panel records the bleeding day and intensity (`Lengvas`/`Vidutinis`/`Stiprus`) in one action; active days without today’s confirmation are handled by adding the internal `period-day` before the flow. The active-period card is status-only: it shows the current level, `Keisti` opens today’s day panel, and `Baigėsi` ends the period. The internal period-day row is hidden from the day record list so only one bleeding record is visible.
+
+**Verification.** `svelte-check` clean; 82 unit tests in 7 files; 12 Playwright flows; build **62.7 KB gzip JS**, 4.5 KB gzip CSS, 15 precached files (222 KiB). 390/320 have no horizontal overflow; the countdown grid, 44 px controls, active card and day panel fit. Screenshots include Today light/dark, Calendar, the intensity panel and the active-period card.
+
+**Data/deploy.** No IndexedDB, backup, settings, URL or QR changes. Existing data remains valid. Real iOS safe-area/screen-reader behaviour and ICS import remain untested.

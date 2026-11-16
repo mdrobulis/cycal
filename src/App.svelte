@@ -79,6 +79,15 @@
     }
   }
 
+  async function openTodayBleeding(): Promise<void> {
+    homeTab = 'calendar';
+    selectedDay = app.today;
+    await tick();
+    document
+      .querySelector<HTMLElement>('.day-panel')
+      ?.scrollIntoView({ block: 'nearest', behavior: reduceMotion() ? 'auto' : 'smooth' });
+  }
+
   function exportNow(): void {
     exportBackup(app.events, app.settings);
     void app
@@ -211,7 +220,8 @@
       {#if app.activePeriod}
         <ActivePeriodCard
           period={app.activePeriod}
-          onStill={() => runAction(() => app.addPeriodDay(app.today))}
+          flow={app.flowForDay(app.today)}
+          onChange={openTodayBleeding}
           onEnded={() => runAction(() => app.endActivePeriod(app.today))}
         />
       {:else}

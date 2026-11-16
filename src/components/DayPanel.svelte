@@ -4,7 +4,6 @@
   import { formatLongDay, weekdayName } from '../lib/date';
   import { eventIcon } from '../lib/icon-names';
   import {
-    FLOWS,
     MOODS,
     SEVERITIES,
     SYMPTOMS,
@@ -13,12 +12,13 @@
   } from '../lib/vocab';
   import { COPY } from '../lib/strings';
   import type { DayEvent, DayKey, Severity } from '../lib/types';
+  import BleedingControl from './BleedingControl.svelte';
   import Icon from './Icon.svelte';
 
   let { date, onClose }: { date: DayKey; onClose: () => void } = $props();
 
   let panel = $state<HTMLElement>();
-  let panelOpen = $state<null | 'symptom' | 'symptomOther' | 'mood' | 'flow' | 'note' | 'custom'>(
+  let panelOpen = $state<null | 'symptom' | 'symptomOther' | 'mood' | 'note' | 'custom'>(
     null,
   );
   let note = $state('');
@@ -34,6 +34,7 @@
   let editInput = $state<HTMLTextAreaElement | HTMLInputElement>();
 
   const events = $derived(app.eventsForDay(date));
+  const visibleEvents = $derived(events.filter((event) => event.kind !== 'period-day'));
   const active = $derived(app.activePeriod);
   const hasStart = $derived(app.hasEvent(date, 'period-start'));
   const covers = $derived(app.coversPeriod(date));
@@ -41,7 +42,8 @@
   const future = $derived(date > app.today);
   const intimacy = $derived(events.some((event) => event.kind === 'intimacy'));
   const currentMood = $derived(events.find((event) => event.kind === 'mood'));
-  const currentFlow = $derived(events.find((event) => event.kind === 'flow'));
+  const currentFlow = $derived(app.flowForDay(date));
+  const canMarkBleeding = $derived(!future && (canBleed || covers));
 
   onMount(() => {
     const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -107,13 +109,6 @@
   function chooseMood(value: number): void {
     void run(async () => {
       await app.setMood(date, value);
-      panelOpen = null;
-    });
-  }
-
-  function chooseFlow(value: 'light' | 'medium' | 'heavy'): void {
-    void run(async () => {
-      await app.setFlow(date, value);
       panelOpen = null;
     });
   }
@@ -198,17 +193,24 @@
       <p class="future-note">{COPY.sheet.futureNote}</p>
     {/if}
 
-    {#if !future && (!hasStart || canBleed)}
+    {#if canMarkBleeding}
+      <div class="bleeding">
+        <p class="bleeding-title">{COPY.sheet.flow}</p>
+        <BleedingControl
+          value={currentFlow}
+          onChange={(value) => run(() => app.markBleeding(date, value))}
+        />
+      </div>
+    {/if}
+
+    {#if !future && ((!hasStart && !covers && !canBleed) || canBleed)}
       <div class="period-row">
-        {#if !hasStart && !canBleed}
+        {#if !hasStart && !covers && !canBleed}
           <button class="chip" onclick={() => run(() => app.markPeriodStart(date))}>
             {COPY.period.started}
           </button>
         {/if}
         {#if canBleed}
-          <button class="chip" onclick={() => run(() => app.addPeriodDay(date))}>
-            {COPY.period.still}
-          </button>
           <button class="chip" onclick={() => run(() => app.markPeriodEnd(date))}>
             {COPY.period.finished}
           </button>
@@ -216,10 +218,10 @@
       </div>
     {/if}
 
-    {#if events.length === 0}
+    {#if visibleEvents.length === 0}
       <p class="empty">{COPY.sheet.empty}</p>
     {:else}
-      {#each events as event (event.id)}
+      {#each visibleEvents as event (event.id)}
         {@const detail = eventDetail(event)}
         {@const icon = eventIcon(event.kind)}
         <div class="event">
@@ -308,9 +310,6 @@
       <div class="add-grid">
         <button class="add" onclick={() => togglePanel('symptom')}>{COPY.sheet.symptom}</button>
         <button class="add" onclick={() => togglePanel('mood')}>{COPY.sheet.mood}</button>
-        {#if covers}
-          <button class="add" onclick={() => togglePanel('flow')}>{COPY.sheet.flow}</button>
-        {/if}
         <button
           class="add"
           class:on={intimacy}
@@ -358,21 +357,6 @@
                 onclick={() => chooseMood(index + 1)}
               >
                 {mood}
-              </button>
-            {/each}
-          </div>
-        </div>
-      {:else if panelOpen === 'flow'}
-        <div class="panel">
-          <p class="panel-subtitle">{COPY.sheet.flow}</p>
-          <div class="chips">
-            {#each FLOWS as flow (flow.value)}
-              <button
-                class="chip"
-                class:on={currentFlow?.value === flow.value}
-                onclick={() => chooseFlow(flow.value)}
-              >
-                {flow.label}
               </button>
             {/each}
           </div>
@@ -591,6 +575,19 @@
   .add.on {
     background: var(--accent-soft);
     border-color: var(--accent);
+  }
+
+  .bleeding {
+    margin: 0 0 12px;
+    padding: 10px 12px;
+    border-radius: var(--radius);
+    background: var(--bg);
+  }
+
+  .bleeding-title {
+    margin: 0 0 8px;
+    color: var(--muted);
+    font-size: 13px;
   }
 
   .panel {

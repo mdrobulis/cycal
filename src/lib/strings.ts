@@ -90,6 +90,7 @@ export const COPY = {
       pms: 'PMS',
       luteal: 'Prieš mėnesines',
       late: (days: number) => `Vėluoja ${days} d.`,
+      lateShort: 'Vėluoja',
       paused: 'Pristabdyta',
       irregular: 'Nereguliariai',
       none: '—',
@@ -105,6 +106,8 @@ export const COPY = {
       inDays: (days: number) => `po ${days} d.`,
       today: 'šiandien',
       late: (days: number) => `vėluoja ${days} d.`,
+      now: 'Dabar',
+      lateNote: 'vėluoja',
     },
     historyCta: 'Įrašyti istoriją',
     approxAria: 'Apytikslė data',
@@ -138,10 +141,14 @@ export const COPY = {
       loggedCount: (count: number) => `Įrašai: ${count}`,
     },
   },
+  bleeding: {
+    aria: 'Kraujavimo intensyvumas',
+    unmarked: 'Nepažymėta',
+    change: 'Keisti',
+  },
   period: {
     day: (days: number) =>
       days > 10 ? `Mėnesinės atviros: ${days} d.` : `Mėnesinės: ${days} d.`,
-    still: 'Dar kraujuoji',
     ended: 'Baigėsi',
     started: 'Mėnesinės prasidėjo',
     bleeding: 'Kraujavimas',

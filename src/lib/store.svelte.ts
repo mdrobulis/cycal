@@ -19,6 +19,7 @@ import {
   type DayEvent,
   type DayKey,
   type EventKind,
+  type FlowValue,
   type HistoryCycle,
   type NewEvent,
   type Severity,
@@ -267,7 +268,26 @@ class CycalStore {
     await this.addEvent({ kind: 'mood', date, value: mood });
   }
 
-  async setFlow(date: DayKey, value: 'light' | 'medium' | 'heavy'): Promise<void> {
+  flowForDay(date: DayKey): FlowValue | undefined {
+    const event = this.eventsForDay(date).find((candidate) => candidate.kind === 'flow');
+    const value = event?.value;
+    return value === 'light' || value === 'medium' || value === 'heavy' ? value : undefined;
+  }
+
+  async markBleeding(date: DayKey, value: FlowValue): Promise<void> {
+    if (date > this.today) throw new Error(COPY.errors.futureBleeding);
+    const active = this.activePeriod;
+    const activeDay = Boolean(active && date >= active.start && date <= this.today);
+    if (!activeDay && !this.coversPeriod(date)) {
+      throw new Error(COPY.errors.flowOnlyPeriod);
+    }
+    if (activeDay && !this.hasEvent(date, 'period-day')) {
+      await this.addEvent({ kind: 'period-day', date });
+    }
+    await this.setFlow(date, value);
+  }
+
+  async setFlow(date: DayKey, value: FlowValue): Promise<void> {
     if (!this.coversPeriod(date)) {
       throw new Error(COPY.errors.flowOnlyPeriod);
     }

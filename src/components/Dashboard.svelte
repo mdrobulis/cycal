@@ -1,6 +1,12 @@
 <script lang="ts">
-  import { cycleBar, cyclePhase } from '../lib/cycle-view';
-  import { formatDay, formatRange, relativeDays } from '../lib/date';
+  import {
+    cyclePhase,
+    dayCountdown,
+    nextPeriodCountdown,
+    rangeCountdown,
+    type Countdown,
+  } from '../lib/cycle-view';
+  import { formatDay, formatRange } from '../lib/date';
   import { COPY } from '../lib/strings';
   import type { CycleStats } from '../lib/types';
   import Icon from './Icon.svelte';
@@ -12,7 +18,10 @@
   }: { stats: CycleStats; today: string; onHistory: () => void } = $props();
 
   const phase = $derived(cyclePhase(stats, today));
-  const bar = $derived(cycleBar(stats));
+  const next = $derived(nextPeriodCountdown(stats, today));
+  const fertile = $derived(rangeCountdown(today, stats.fertileRange));
+  const ovulation = $derived(dayCountdown(today, stats.ovulation));
+  const pms = $derived(rangeCountdown(today, stats.pmsRange));
 
   const phaseLabel = $derived.by(() => {
     switch (phase) {
@@ -25,7 +34,7 @@
       case 'pms':
         return COPY.dashboard.phase.pms;
       case 'late':
-        return COPY.dashboard.phase.late(stats.daysLate ?? 0);
+        return COPY.dashboard.phase.lateShort;
       case 'luteal':
         return COPY.dashboard.phase.luteal;
       case 'paused':
@@ -37,24 +46,16 @@
     }
   });
 
-  const nextText = $derived.by(() => {
+  const nextDate = $derived.by(() => {
     if (stats.nextRange) return formatRange(stats.nextRange.from, stats.nextRange.to);
     if (stats.nextStart) return formatDay(stats.nextStart);
     return '—';
   });
-  const nextApprox = $derived(Boolean(stats.nextRange || stats.usingDefault));
-
-  const nextHint = $derived.by(() => {
-    if (!stats.nextStart) return '';
-    if (stats.daysLate) return COPY.dashboard.countdown.late(stats.daysLate);
-    return relativeDays(stats.nextStart, today);
-  });
-
-  const fertileText = $derived(
+  const fertileDate = $derived(
     stats.fertileRange ? formatRange(stats.fertileRange.from, stats.fertileRange.to) : '—',
   );
-  const ovulationText = $derived(stats.ovulation ? formatDay(stats.ovulation) : '—');
-  const pmsText = $derived(
+  const ovulationDate = $derived(stats.ovulation ? formatDay(stats.ovulation) : '—');
+  const pmsDate = $derived(
     stats.pmsRange ? formatRange(stats.pmsRange.from, stats.pmsRange.to) : '—',
   );
   const lastText = $derived.by(() => {
@@ -65,7 +66,24 @@
     return `${formatDay(stats.lastPeriod.start)} · ${COPY.dashboard.subs.ongoing}`;
   });
 
+  const nextApprox = $derived(Boolean(stats.nextRange || stats.usingDefault));
+  const phaseApprox = $derived(Boolean(stats.usingDefault));
   const showSafety = $derived(!stats.paused && Boolean(stats.nextStart || stats.nextRange));
+
+  function valueText(countdown: Countdown): string {
+    if (
+      (countdown.state === 'future' || countdown.state === 'late') &&
+      countdown.days !== undefined
+    ) {
+      return String(countdown.days);
+    }
+    if (countdown.state === 'today') return COPY.dashboard.countdown.now;
+    return '—';
+  }
+
+  function hasUnit(countdown: Countdown): boolean {
+    return countdown.state === 'future' || countdown.state === 'late';
+  }
 </script>
 
 <section class="dash" aria-label={COPY.dashboard.aria}>
@@ -75,76 +93,78 @@
       <button class="secondary" onclick={onHistory}>{COPY.dashboard.historyCta}</button>
     </div>
   {:else}
-    <header class="hero-row">
-      <p class="day" aria-label={`Ciklo diena ${stats.cycleDay ?? '—'}`}>
-        <span class="num">{stats.cycleDay ?? '—'}</span><span class="unit">d.</span>
-      </p>
+    <header class="context">
+      <div>
+        <p class="eyebrow">{COPY.dashboard.eyebrow}</p>
+        <p class="day" aria-label={`Ciklo diena ${stats.cycleDay ?? '—'}`}>
+          <span class="num">{stats.cycleDay ?? '—'}</span><span class="unit">d.</span>
+        </p>
+      </div>
       <span class="phase {phase}">{phaseLabel}</span>
     </header>
 
-    {#if bar}
-      <div
-        class="cycle-bar"
-        role="img"
-        aria-label={`${COPY.dashboard.cycleAria}: ${nextText}`}
-      >
-        <span
-          class="seg period"
-          style={`left:${bar.period.from}%;width:${bar.period.to - bar.period.from}%`}
-        ></span>
-        {#if bar.fertile}
-          <span
-            class="seg fertile"
-            style={`left:${bar.fertile.from}%;width:${bar.fertile.to - bar.fertile.from}%`}
-          ></span>
+    <div class="counts">
+      <article class="count">
+        <p class="count-label">
+          <Icon name="calendar" size={16} />
+          <span>{COPY.dashboard.rows.next}</span>
+        </p>
+        <p class="count-value {next.state}">
+          {valueText(next)}
+          {#if hasUnit(next)}<span class="count-unit">d.</span>{/if}
+        </p>
+        <p class="count-date">
+          {#if nextApprox}<span class="approx" aria-label={COPY.dashboard.approxAria}>~</span>{/if}{nextDate}
+        </p>
+        {#if next.state === 'late'}
+          <p class="late-note">{COPY.dashboard.countdown.lateNote}</p>
         {/if}
-        {#if bar.pms}
-          <span
-            class="seg pms"
-            style={`left:${bar.pms.from}%;width:${bar.pms.to - bar.pms.from}%`}
-          ></span>
-        {/if}
-        {#if bar.ovulation !== undefined}
-          <span class="mark ovulation" style={`left:${bar.ovulation}%`}></span>
-        {/if}
-        {#if bar.today !== undefined}
-          <span class="mark today" style={`left:${bar.today}%`}></span>
-        {/if}
-        <span class="mark next"></span>
-      </div>
-    {/if}
+      </article>
 
-    <dl class="rows">
-      <div class="row next">
-        <dt><Icon name="calendar" size={18} /><span>{COPY.dashboard.rows.next}</span></dt>
-        <dd>
-          <span class="date">
-            {#if nextApprox}<span class="approx" aria-label={COPY.dashboard.approxAria}>~</span>{/if}{nextText}
-          </span>
-          {#if nextHint}<span class="countdown">{nextHint}</span>{/if}
-        </dd>
-      </div>
+      <article class="count">
+        <p class="count-label">
+          <Icon name="leaf" size={16} />
+          <span>{COPY.dashboard.rows.fertile}</span>
+        </p>
+        <p class="count-value {fertile.state}">
+          {valueText(fertile)}
+          {#if hasUnit(fertile)}<span class="count-unit">d.</span>{/if}
+        </p>
+        <p class="count-date">
+          {#if phaseApprox}<span class="approx" aria-label={COPY.dashboard.approxAria}>~</span>{/if}{fertileDate}
+        </p>
+      </article>
 
-      <div class="row">
-        <dt><Icon name="leaf" size={18} /><span>{COPY.dashboard.rows.fertile}</span></dt>
-        <dd><span class="date">{fertileText}</span></dd>
-      </div>
+      <article class="count">
+        <p class="count-label">
+          <Icon name="ovum" size={16} />
+          <span>{COPY.dashboard.rows.ovulation}</span>
+        </p>
+        <p class="count-value {ovulation.state}">
+          {valueText(ovulation)}
+          {#if hasUnit(ovulation)}<span class="count-unit">d.</span>{/if}
+        </p>
+        <p class="count-date">
+          {#if phaseApprox}<span class="approx" aria-label={COPY.dashboard.approxAria}>~</span>{/if}{ovulationDate}
+        </p>
+      </article>
 
-      <div class="row">
-        <dt><Icon name="ovum" size={18} /><span>{COPY.dashboard.rows.ovulation}</span></dt>
-        <dd><span class="date">{ovulationText}</span></dd>
-      </div>
+      <article class="count">
+        <p class="count-label">
+          <Icon name="moon" size={16} />
+          <span>{COPY.dashboard.rows.pms}</span>
+        </p>
+        <p class="count-value {pms.state}">
+          {valueText(pms)}
+          {#if hasUnit(pms)}<span class="count-unit">d.</span>{/if}
+        </p>
+        <p class="count-date">
+          {#if phaseApprox}<span class="approx" aria-label={COPY.dashboard.approxAria}>~</span>{/if}{pmsDate}
+        </p>
+      </article>
+    </div>
 
-      <div class="row secondary-row">
-        <dt><Icon name="moon" size={18} /><span>{COPY.dashboard.rows.pms}</span></dt>
-        <dd><span class="date">{pmsText}</span></dd>
-      </div>
-
-      <div class="row secondary-row">
-        <dt><Icon name="droplet" size={18} /><span>{COPY.dashboard.rows.last}</span></dt>
-        <dd><span class="date">{lastText}</span></dd>
-      </div>
-    </dl>
+    <p class="last">{COPY.dashboard.rows.last}: {lastText}</p>
 
     {#if showSafety}
       <p class="note">{COPY.dashboard.notes.estimate}</p>
@@ -157,36 +177,40 @@
     padding-top: 16px;
   }
 
-  .hero-row {
+  .context {
     display: flex;
     align-items: flex-end;
     justify-content: space-between;
-    gap: 12px;
     flex-wrap: wrap;
+    gap: 10px 12px;
+  }
+
+  .eyebrow {
+    margin-bottom: 2px;
   }
 
   .day {
     display: flex;
     align-items: baseline;
-    gap: 4px;
+    gap: 3px;
     margin: 0;
   }
 
   .num {
-    font-size: 52px;
-    line-height: 0.95;
+    font-size: 30px;
+    line-height: 1;
     font-weight: 600;
-    letter-spacing: -0.03em;
+    letter-spacing: -0.02em;
     font-variant-numeric: tabular-nums;
   }
 
   .unit {
     color: var(--muted);
-    font-size: 16px;
+    font-size: 13px;
   }
 
   .phase {
-    margin-bottom: 4px;
+    margin-bottom: 3px;
     padding: 4px 9px;
     border-radius: 999px;
     font-size: 13px;
@@ -223,137 +247,97 @@
     color: var(--muted);
   }
 
-  .cycle-bar {
-    position: relative;
-    height: 8px;
-    margin: 16px 0 8px;
-    border-radius: 999px;
-    background: var(--line);
-  }
-
-  .seg {
-    position: absolute;
-    top: 0;
-    height: 8px;
-  }
-
-  .seg.period {
-    background: var(--period-fill);
-    border-radius: 999px 0 0 999px;
-  }
-
-  .seg.fertile {
-    background: var(--fertile-soft);
-  }
-
-  .seg.pms {
-    background: var(--accent-soft);
-  }
-
-  .mark {
-    position: absolute;
-    top: 50%;
-    transform: translate(-50%, -50%);
-  }
-
-  .mark.ovulation {
-    width: 6px;
-    height: 6px;
-    border-radius: 50%;
-    background: var(--accent);
-  }
-
-  .mark.today {
-    width: 2px;
-    height: 14px;
-    background: var(--ink);
-    z-index: 2;
-  }
-
-  .mark.next {
-    left: 100%;
-    width: 2px;
-    height: 8px;
-    background: var(--accent);
-  }
-
-  .rows {
-    margin: 8px 0 0;
-    padding: 0;
-  }
-
-  .row {
+  .counts {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) auto;
-    align-items: center;
-    gap: 12px;
-    min-height: 46px;
-    padding: 8px 0;
-    border-bottom: 1px solid var(--line);
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0 18px;
+    margin-top: 16px;
   }
 
-  .row:last-child {
-    border-bottom: 0;
+  .count {
+    min-width: 0;
+    padding: 10px 0 12px;
+    border-top: 1px solid var(--line);
   }
 
-  dt {
+  .count-label {
     display: flex;
     align-items: center;
-    gap: 8px;
-    min-width: 0;
-    color: var(--ink);
-    font-size: 14px;
+    gap: 6px;
+    margin: 0;
+    color: var(--muted);
+    font-size: 12.5px;
+    font-weight: 500;
   }
 
-  dt :global(svg) {
+  .count-label :global(svg) {
     flex: 0 0 auto;
     color: var(--muted);
   }
 
-  dd {
-    margin: 0;
-    min-width: 0;
+  .count-value {
     display: flex;
-    flex-direction: column;
-    align-items: flex-end;
-    gap: 1px;
-    text-align: right;
+    align-items: baseline;
+    gap: 3px;
+    margin: 5px 0 0;
+    color: var(--ink);
+    font-size: 44px;
+    line-height: 1;
+    font-weight: 600;
+    letter-spacing: -0.03em;
+    font-variant-numeric: tabular-nums;
   }
 
-  .date {
-    font-size: 15px;
-    font-weight: 500;
-    line-height: 1.25;
+  .count-value.today {
+    font-size: 22px;
+    letter-spacing: 0;
+  }
+
+  .count-value.past,
+  .count-value.none {
+    color: var(--muted);
+    font-size: 30px;
+  }
+
+  .count-value.late {
+    color: var(--danger);
+  }
+
+  .count-unit {
+    color: var(--muted);
+    font-size: 13px;
+    font-weight: 400;
+    letter-spacing: 0;
+  }
+
+  .count-date {
+    margin: 5px 0 0;
+    color: var(--muted);
+    font-size: 12px;
+    line-height: 1.35;
     font-variant-numeric: tabular-nums;
     overflow-wrap: anywhere;
   }
 
-  .next .date {
-    font-size: 18px;
-    font-weight: 600;
-  }
-
-  .countdown {
-    color: var(--muted);
-    font-size: 12.5px;
-  }
-
   .approx {
     margin-right: 2px;
-    color: var(--muted);
   }
 
-  .row.secondary-row dt,
-  .row.secondary-row .date {
-    color: var(--muted);
+  .late-note {
+    margin: 2px 0 0;
+    color: var(--danger);
+    font-size: 11px;
   }
 
-  .row.secondary-row .date {
-    font-size: 14px;
+  .last {
+    margin: 14px 0 0;
+    color: var(--muted);
+    font-size: 12px;
+    line-height: 1.4;
   }
 
   .note {
-    margin: 12px 0 0;
+    margin: 10px 0 0;
     color: var(--muted);
     font-size: 12.5px;
     line-height: 1.4;
