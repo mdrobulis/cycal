@@ -1,0 +1,624 @@
+:root {
+  color-scheme: light;
+  --bg: #faf9f7;
+  --surface: #ffffff;
+  --ink: #1c1a19;
+  --muted: #6f6862;
+  --line: #e8e2da;
+  --hover: #f0eae4;
+  --accent: #7a3b5c;
+  --accent-soft: #f2e6ec;
+  --fertile-soft: #efeae3;
+  --on-accent: #ffffff;
+  --danger: #8c2f2f;
+  --radius: 12px;
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-top: env(safe-area-inset-top, 0px);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    color-scheme: dark;
+    --bg: #141312;
+    --surface: #1c1a18;
+    --ink: #ede9e3;
+    --muted: #a8a099;
+    --line: #2b2825;
+    --hover: #242019;
+    --accent: #c98fa8;
+    --accent-soft: #33222b;
+    --fertile-soft: #2c2721;
+    --on-accent: #191215;
+    --danger: #e8a7a0;
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
+html,
+body {
+  margin: 0;
+  min-height: 100%;
+}
+
+body {
+  min-height: 100dvh;
+  background: var(--bg);
+  color: var(--ink);
+  font-family:
+    system-ui,
+    -apple-system,
+    'Segoe UI',
+    Roboto,
+    'Helvetica Neue',
+    Arial,
+    sans-serif;
+  font-size: 17px;
+  line-height: 1.45;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+#app {
+  min-height: 100dvh;
+}
+
+button {
+  font: inherit;
+  color: inherit;
+  background: none;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
+button:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+a {
+  color: var(--accent);
+}
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+input,
+select,
+textarea {
+  font: inherit;
+  font-size: 16px;
+  color: var(--ink);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 10px 12px;
+  min-height: 44px;
+}
+
+textarea {
+  min-height: 88px;
+  resize: vertical;
+}
+
+.app {
+  width: 100%;
+  max-width: 480px;
+  margin: 0 auto;
+  min-height: 100dvh;
+  padding: 0 20px calc(128px + var(--safe-bottom));
+}
+
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: calc(var(--safe-top) + 12px) 0 6px;
+}
+
+.wordmark {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+}
+
+.page-title {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 600;
+}
+
+.icon-btn {
+  width: 44px;
+  height: 44px;
+  flex: 0 0 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius);
+  color: var(--ink);
+}
+
+@media (hover: hover) {
+  .icon-btn:hover {
+    background: var(--hover);
+  }
+}
+
+.primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 48px;
+  padding: 0 20px;
+  border-radius: var(--radius);
+  background: var(--accent);
+  color: var(--on-accent);
+  font-size: 16px;
+  font-weight: 600;
+  transition: transform 120ms ease-out;
+}
+
+.primary:active {
+  transform: scale(0.995);
+}
+
+.secondary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 44px;
+  padding: 0 16px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: transparent;
+  color: var(--ink);
+  font-size: 15px;
+}
+
+@media (hover: hover) {
+  .secondary:hover {
+    background: var(--hover);
+  }
+}
+
+.link-button {
+  min-height: 44px;
+  padding: 0 4px;
+  color: var(--accent);
+  font-size: 14px;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.danger-text {
+  color: var(--danger);
+}
+
+.eyebrow {
+  margin: 0;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.hero {
+  margin: 0;
+  font-size: 44px;
+  line-height: 1;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+}
+
+.muted {
+  color: var(--muted);
+}
+
+.banner {
+  margin: 8px 0;
+  padding: 10px 12px;
+  border-radius: var(--radius);
+  background: var(--accent-soft);
+  font-size: 14px;
+}
+
+.hairline {
+  height: 1px;
+  margin: 24px 0;
+  border: 0;
+  background: var(--line);
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.actionbar {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 20;
+  background: var(--bg);
+  border-top: 1px solid var(--line);
+  padding: 10px 20px calc(10px + var(--safe-bottom));
+}
+
+.actionbar-inner {
+  width: 100%;
+  max-width: 440px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* Month calendar */
+
+.calendar {
+  margin-top: 22px;
+}
+
+.cal-head {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  margin-bottom: 2px;
+}
+
+.cal-head select {
+  appearance: auto;
+  border: 0;
+  background: transparent;
+  min-height: 44px;
+  padding: 0 4px;
+  font-size: 17px;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.cal-grid {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+}
+
+.cal-grid th,
+.cal-grid td {
+  padding: 0;
+}
+
+.cal-weekday {
+  height: 30px;
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.cal-grid tbody tr {
+  height: 46px;
+}
+
+.cal-cell {
+  text-align: center;
+  vertical-align: middle;
+}
+
+.cal-day {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  width: min(100%, 46px);
+  aspect-ratio: 1;
+  border: 1.5px solid transparent;
+  border-radius: 999px;
+  color: var(--ink);
+  font-size: 16px;
+  font-variant-numeric: tabular-nums;
+}
+
+.cal-day .num {
+  line-height: 1;
+}
+
+.cal-day .dots {
+  display: flex;
+  gap: 2px;
+  height: 4px;
+}
+
+.cal-day .dot {
+  width: 3.5px;
+  height: 3.5px;
+  border-radius: 50%;
+  background: var(--accent);
+}
+
+.cal-day[data-outside-month] {
+  opacity: 0.38;
+}
+
+.cal-day[data-today] .num {
+  font-weight: 700;
+}
+
+.cal-cell.is-fertile .cal-day .num {
+  text-decoration: underline dotted;
+  text-decoration-thickness: 1.5px;
+  text-underline-offset: 3px;
+}
+
+.cal-day[data-selected] {
+  box-shadow: inset 0 0 0 2px var(--ink);
+}
+
+.cal-cell.is-period .cal-day {
+  background: var(--accent-soft);
+}
+
+.cal-cell.is-predicted .cal-day {
+  border-color: var(--accent);
+  border-style: dashed;
+}
+
+.cal-cell.is-fertile .cal-day {
+  background: var(--fertile-soft);
+}
+
+.cal-cell.is-period.is-fertile .cal-day {
+  background: var(--accent-soft);
+}
+
+.cal-cell.is-ovulation .num {
+  border-radius: 999px;
+  outline: 1.5px solid var(--accent);
+  outline-offset: 3px;
+}
+
+.cal-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.cal-nav .today {
+  min-height: 44px;
+  padding: 0 16px;
+  border-radius: var(--radius);
+  font-size: 15px;
+  color: var(--muted);
+}
+
+@media (hover: hover) {
+  .cal-nav .today:hover {
+    background: var(--hover);
+  }
+}
+
+.cal-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 14px;
+  margin: 10px 0 0;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.cal-legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.cal-legend i {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+}
+
+.cal-legend .lg-recorded {
+  background: var(--accent-soft);
+}
+
+.cal-legend .lg-predicted {
+  border: 1px dashed var(--accent);
+}
+
+.cal-legend .lg-fertile {
+  width: 12px;
+  height: 12px;
+  border-radius: 3px;
+  background: var(--fertile-soft);
+  border-bottom: 1.5px dotted var(--muted);
+}
+
+.cal-legend .lg-event {
+  width: 4px;
+  height: 4px;
+  background: var(--accent);
+}
+
+/* Bottom sheet and dialogs */
+
+.sheet {
+  display: none;
+  position: fixed;
+  inset: auto 0 0 0;
+  margin: 0 auto;
+  width: 100%;
+  max-width: 480px;
+  max-height: 86dvh;
+  padding: 0;
+  border: 0;
+  border-radius: 20px 20px 0 0;
+  background: var(--surface);
+  color: var(--ink);
+  overflow: hidden;
+}
+
+.sheet[open] {
+  display: flex;
+  flex-direction: column;
+  animation: sheet-in 180ms ease-out;
+}
+
+.sheet::backdrop {
+  background: rgb(0 0 0 / 0.45);
+}
+
+.sheet-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 16px 8px 20px;
+  border-bottom: 1px solid var(--line);
+}
+
+.sheet-title {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 600;
+}
+
+.sheet-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 12px 20px 16px;
+  -webkit-overflow-scrolling: touch;
+}
+
+.sheet-foot {
+  padding: 10px 20px calc(10px + var(--safe-bottom));
+  border-top: 1px solid var(--line);
+  background: var(--surface);
+}
+
+@keyframes sheet-in {
+  from {
+    transform: translateY(14px);
+    opacity: 0.7;
+  }
+}
+
+.toast {
+  position: fixed;
+  left: 50%;
+  bottom: calc(104px + var(--safe-bottom));
+  transform: translateX(-50%);
+  z-index: 40;
+  width: min(440px, calc(100% - 32px));
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 10px 8px 16px;
+  border-radius: var(--radius);
+  background: var(--ink);
+  color: var(--bg);
+  font-size: 14px;
+}
+
+.toast button {
+  min-height: 40px;
+  padding: 0 10px;
+  color: inherit;
+  font-weight: 600;
+}
+
+.undo-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 10px;
+  padding: 8px 8px 8px 12px;
+  border-radius: var(--radius);
+  background: var(--accent-soft);
+  font-size: 14px;
+}
+
+.undo-row button {
+  min-height: 40px;
+  padding: 0 8px;
+  font-weight: 600;
+}
+
+.dialog-card {
+  display: none;
+  position: fixed;
+  inset: 0;
+  margin: auto;
+  width: min(400px, calc(100% - 40px));
+  max-height: 80dvh;
+  padding: 0;
+  border: 0;
+  border-radius: 16px;
+  background: var(--surface);
+  color: var(--ink);
+}
+
+.dialog-card[open] {
+  display: block;
+}
+
+.dialog-card::backdrop {
+  background: rgb(0 0 0 / 0.45);
+}
+
+.danger-button {
+  min-height: 44px;
+  padding: 0 16px;
+  border-radius: var(--radius);
+  background: var(--danger);
+  color: var(--on-accent);
+  font-size: 15px;
+  font-weight: 600;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
